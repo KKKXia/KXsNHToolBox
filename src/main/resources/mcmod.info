@@ -1,0 +1,19 @@
+[
+    {
+        "modid": "nhtoolbox",
+        "name": "NHToolbox",
+        "description": "A toolbox mod for Minecraft 1.7.10 with floating placement mode",
+        "version": "1.0.0",
+        "mcversion": "1.7.10",
+        "url": "",
+        "updateUrl": "",
+        "authorList": ["KKKXia"],
+        "credits": "",
+        "logoFile": "",
+        "screenshots": [],
+        "dependencies": [
+            "forge@[10.13.4.1614,)",
+            "minecraft@[1.7.10,1.7.10]"
+        ]
+    }
+]
