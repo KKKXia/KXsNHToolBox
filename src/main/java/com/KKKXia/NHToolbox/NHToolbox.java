@@ -15,13 +15,13 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 @Mod(modid = NHToolbox.MODID, version = NHToolbox.VERSION, name = "NHToolbox", acceptedMinecraftVersions = "[1.7.10]")
 public class NHToolbox {
 
-    public static final String MODID = "NHToolbox";
+    public static final String MODID = "nhtoolbox";
     public static final String VERSION = "0.1.0";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
     @SidedProxy(
-        clientSide = "com.KKKXia.NHToolbox.Proxy.ClientProxy",
-        serverSide = "com.KKKXia.NHToolbox.Proxy.CommonProxy")
+        clientSide = "com.KKKXia.nhtoolbox.Proxy.ClientProxy",
+        serverSide = "com.KKKXia.nhtoolbox.Proxy.CommonProxy")
     public static CommonProxy proxy;
 
     @Mod.EventHandler
