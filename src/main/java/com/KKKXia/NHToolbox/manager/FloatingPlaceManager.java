@@ -4,13 +4,25 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ChatComponentText;
 
+import com.KKKXia.NHToolbox.NHToolbox;
+
 public class FloatingPlaceManager {
 
+    public enum Mode {
+        IDLE,
+        PLACING,
+        ADJUSTING
+    }
+
     private static FloatingPlaceManager instance;
-    private boolean isFloatingPlaceMode = false;
+    private Mode currentMode = Mode.IDLE;
     private int lastPlacedBlockX = -1;
     private int lastPlacedBlockY = -1;
     private int lastPlacedBlockZ = -1;
+    private int previewBlockX = 0;
+    private int previewBlockY = 0;
+    private int previewBlockZ = 0;
+    private boolean hasPreviewPosition = false;
 
     private FloatingPlaceManager() {}
 
@@ -21,12 +33,20 @@ public class FloatingPlaceManager {
         return instance;
     }
 
-    public boolean isFloatingPlaceMode() {
-        return isFloatingPlaceMode;
+    public Mode getCurrentMode() {
+        return currentMode;
     }
 
-    public void setFloatingPlaceMode(boolean mode) {
-        this.isFloatingPlaceMode = mode;
+    public boolean isFloatingPlaceMode() {
+        return currentMode != Mode.IDLE;
+    }
+
+    public boolean isPlacingMode() {
+        return currentMode == Mode.PLACING;
+    }
+
+    public boolean isAdjustMode() {
+        return currentMode == Mode.ADJUSTING;
     }
 
     public int getLastPlacedBlockX() {
@@ -45,32 +65,67 @@ public class FloatingPlaceManager {
         this.lastPlacedBlockX = x;
         this.lastPlacedBlockY = y;
         this.lastPlacedBlockZ = z;
+        this.currentMode = Mode.ADJUSTING;
+        NHToolbox.LOG.info("Block placed at: " + x + ", " + y + ", " + z + " - entering adjust mode");
     }
 
     public void resetLastPlacedBlock() {
         this.lastPlacedBlockX = -1;
         this.lastPlacedBlockY = -1;
         this.lastPlacedBlockZ = -1;
-    }
-
-    public void activateFloatingPlaceMode() {
-        setFloatingPlaceMode(true);
-        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
-        if (player != null) {
-            player.addChatComponentMessage(new ChatComponentText("§a浮空放置模式已激活！"));
-        }
-    }
-
-    public void deactivateFloatingPlaceMode() {
-        setFloatingPlaceMode(false);
-        resetLastPlacedBlock();
-        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
-        if (player != null) {
-            player.addChatComponentMessage(new ChatComponentText("§c浮空放置模式已关闭！"));
-        }
+        this.currentMode = Mode.PLACING;
     }
 
     public boolean hasPlacedBlock() {
         return lastPlacedBlockX != -1 && lastPlacedBlockY != -1 && lastPlacedBlockZ != -1;
+    }
+
+    public boolean hasPreviewPosition() {
+        return hasPreviewPosition;
+    }
+
+    public int getPreviewBlockX() {
+        return previewBlockX;
+    }
+
+    public int getPreviewBlockY() {
+        return previewBlockY;
+    }
+
+    public int getPreviewBlockZ() {
+        return previewBlockZ;
+    }
+
+    public void setPreviewPosition(int x, int y, int z) {
+        this.previewBlockX = x;
+        this.previewBlockY = y;
+        this.previewBlockZ = z;
+        this.hasPreviewPosition = true;
+    }
+
+    public void clearPreviewPosition() {
+        this.hasPreviewPosition = false;
+    }
+
+    public void activateFloatingPlaceMode() {
+        this.currentMode = Mode.PLACING;
+        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        if (player != null) {
+            player.addChatComponentMessage(new ChatComponentText("§a[浮空放置] 模式已激活！右键空中放置方块，方向键调整位置。"));
+        }
+        NHToolbox.LOG.info("Floating place mode activated (PLACING)");
+    }
+
+    public void deactivateFloatingPlaceMode() {
+        this.currentMode = Mode.IDLE;
+        this.lastPlacedBlockX = -1;
+        this.lastPlacedBlockY = -1;
+        this.lastPlacedBlockZ = -1;
+        this.hasPreviewPosition = false;
+        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        if (player != null) {
+            player.addChatComponentMessage(new ChatComponentText("§c[浮空放置] 模式已关闭！"));
+        }
+        NHToolbox.LOG.info("Floating place mode deactivated");
     }
 }

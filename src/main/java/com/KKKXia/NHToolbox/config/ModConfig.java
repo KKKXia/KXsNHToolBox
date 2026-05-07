@@ -1,0 +1,89 @@
+package com.KKKXia.NHToolbox.config;
+
+import java.io.File;
+
+import net.minecraftforge.common.config.Configuration;
+
+import com.KKKXia.NHToolbox.NHToolbox;
+
+public class ModConfig {
+
+    public static Configuration config;
+
+    public static int toggleKey = 19;
+    public static double rayTraceDistance = 5.0D;
+    public static boolean enableParticles = true;
+    public static boolean enablePreviewBox = true;
+    public static boolean consumeItemsInSurvival = true;
+
+    public static void init(File configFile) {
+        config = new Configuration(configFile);
+        syncConfig();
+    }
+
+    public static void syncConfig() {
+        try {
+            config.load();
+
+            toggleKey = config.getInt(
+                "toggleKey",
+                Configuration.CATEGORY_GENERAL,
+                19,
+                0,
+                255,
+                "Key code for toggling floating place mode (19 = KEY_G)");
+
+            rayTraceDistance = config.getFloat(
+                "rayTraceDistance",
+                Configuration.CATEGORY_GENERAL,
+                5.0F,
+                1.0F,
+                20.0F,
+                "Maximum distance for block placement ray trace");
+
+            enableParticles = config.getBoolean(
+                "enableParticles",
+                Configuration.CATEGORY_GENERAL,
+                true,
+                "Enable particle effects when placing/moving blocks");
+
+            enablePreviewBox = config.getBoolean(
+                "enablePreviewBox",
+                Configuration.CATEGORY_GENERAL,
+                true,
+                "Enable wireframe preview box for placement position");
+
+            consumeItemsInSurvival = config.getBoolean(
+                "consumeItemsInSurvival",
+                Configuration.CATEGORY_GENERAL,
+                true,
+                "Consume items from inventory when placing in survival mode");
+
+            if (config.hasChanged()) {
+                config.save();
+            }
+        } catch (Exception e) {
+            NHToolbox.LOG.error("Failed to load config", e);
+        }
+    }
+
+    public static int getToggleKey() {
+        return toggleKey;
+    }
+
+    public static double getRayTraceDistance() {
+        return rayTraceDistance;
+    }
+
+    public static boolean isParticlesEnabled() {
+        return enableParticles;
+    }
+
+    public static boolean isPreviewBoxEnabled() {
+        return enablePreviewBox;
+    }
+
+    public static boolean isConsumeItemsInSurvival() {
+        return consumeItemsInSurvival;
+    }
+}

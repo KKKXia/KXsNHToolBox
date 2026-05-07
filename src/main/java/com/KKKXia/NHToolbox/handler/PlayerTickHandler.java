@@ -1,13 +1,16 @@
 package com.KKKXia.NHToolbox.handler;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.MovingObjectPosition;
 
+import org.lwjgl.input.Mouse;
+
+import com.KKKXia.NHToolbox.NHToolbox;
 import com.KKKXia.NHToolbox.helper.BlockPlacementHelper;
 import com.KKKXia.NHToolbox.helper.RayTraceHelper;
 import com.KKKXia.NHToolbox.manager.FloatingPlaceManager;
+import com.KKKXia.NHToolbox.network.PacketFloatingPlace;
+import com.KKKXia.NHToolbox.network.PacketHandler;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -15,58 +18,65 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 public class PlayerTickHandler {
 
     private static final FloatingPlaceManager placeManager = FloatingPlaceManager.getInstance();
-    private ItemStack lastHeldItem = null;
+    private boolean wasRightButtonDown = false;
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END && event.player == Minecraft.getMinecraft().thePlayer) {
-            handleItemChange(event.player);
-            handleRightClickPlacement();
+        if (event.phase != TickEvent.Phase.END) {
+            return;
         }
-    }
 
-    private void handleItemChange(EntityPlayer player) {
-        ItemStack currentHeldItem = player.getHeldItem();
-        if (placeManager.isFloatingPlaceMode() && lastHeldItem != null
-            && (currentHeldItem == null || currentHeldItem.getItem() != lastHeldItem.getItem())) {
-            placeManager.deactivateFloatingPlaceMode();
+        if (event.player != Minecraft.getMinecraft().thePlayer) {
+            return;
         }
-        lastHeldItem = currentHeldItem;
+
+        handleRightClickPlacement();
     }
 
     private void handleRightClickPlacement() {
-        if (placeManager.isFloatingPlaceMode() && Minecraft.getMinecraft().gameSettings.keyBindUseItem.isPressed()) {
-            MovingObjectPosition hitResult = RayTraceHelper.getRayTraceResult();
-            if (hitResult != null) {
-                // 计算放置位置
-                int x = hitResult.blockX;
-                int y = hitResult.blockY;
-                int z = hitResult.blockZ;
+        if (!placeManager.isPlacingMode()) {
+            return;
+        }
 
-                // 根据命中面调整位置
-                switch (hitResult.sideHit) {
-                    case 0:
-                        y--;
-                        break; // 底部
-                    case 1:
-                        y++;
-                        break; // 顶部
-                    case 2:
-                        z--;
-                        break; // 北面
-                    case 3:
-                        z++;
-                        break; // 南面
-                    case 4:
-                        x--;
-                        break; // 西面
-                    case 5:
-                        x++;
-                        break; // 东面
-                }
+        boolean isRightDown = Mouse.isButtonDown(1);
 
-                BlockPlacementHelper.placeBlockAt(x, y, z);
-            }
+        if (!isRightDown || wasRightButtonDown) {
+            wasRightButtonDown = isRightDown;
+            return;
+        }
+
+        wasRightButtonDown = true;
+
+        MovingObjectPosition hitResult = RayTraceHelper.getRayTraceResult();
+        if (hitResult != null && hitResult.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+            return;
+        }
+
+        NHToolbox.LOG.debug("FloatingPlace: Right-click in air detected, calculating position...");
+
+        int[] pos = RayTraceHelper.getFloatingPlacementPosition();
+        if (pos == null) {
+            NHToolbox.LOG.debug("FloatingPlace: No valid position returned");
+            return;
+        }
+
+        NHToolbox.LOG.debug("FloatingPlace: Target position = " + pos[0] + ", " + pos[1] + ", " + pos[2]);
+
+        boolean success = BlockPlacementHelper.placeBlockAtClient(pos[0], pos[1], pos[2]);
+
+        if (success) {
+            NHToolbox.LOG.debug("FloatingPlace: Block placed successfully, entering adjust mode");
+            sendPlacementPacket(pos[0], pos[1], pos[2]);
+        }
+    }
+
+    private void sendPlacementPacket(int x, int y, int z) {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            int dimensionId = mc.theWorld.provider.dimensionId;
+            PacketHandler.INSTANCE.sendToServer(new PacketFloatingPlace(x, y, z, dimensionId));
+        } catch (Exception e) {
+            NHToolbox.LOG.warn("Failed to send placement packet", e);
         }
     }
 }
