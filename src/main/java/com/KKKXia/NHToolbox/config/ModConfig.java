@@ -11,7 +11,7 @@ public class ModConfig {
     public static Configuration config;
 
     public static int toggleKey = 19;
-    public static double rayTraceDistance = 5.0D;
+    public static double rayTraceDistance = 1.0D;
     public static boolean enableParticles = true;
     public static boolean enablePreviewBox = true;
     public static boolean consumeItemsInSurvival = true;
@@ -31,15 +31,15 @@ public class ModConfig {
                 19,
                 0,
                 255,
-                "Key code for toggling floating place mode (19 = KEY_G)");
+                "Key code for toggling floating place mode (19 = KEY_G)\n快捷键设置。无视它，懒得改了");
 
             rayTraceDistance = config.getFloat(
                 "rayTraceDistance",
                 Configuration.CATEGORY_GENERAL,
-                5.0F,
+                1.0F,
                 1.0F,
                 20.0F,
-                "Maximum distance for block placement ray trace");
+                "Maximum distance for block placement ray trace\n浮空放置模式指示框距离玩家的距离");
 
             enableParticles = config.getBoolean(
                 "enableParticles",

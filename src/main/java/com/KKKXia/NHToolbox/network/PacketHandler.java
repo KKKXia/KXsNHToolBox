@@ -14,5 +14,10 @@ public class PacketHandler {
     public static void init() {
         INSTANCE
             .registerMessage(PacketFloatingPlace.Handler.class, PacketFloatingPlace.class, nextPacketId++, Side.SERVER);
+        INSTANCE.registerMessage(
+            PacketFloatingPlaceMove.Handler.class,
+            PacketFloatingPlaceMove.class,
+            nextPacketId++,
+            Side.SERVER);
     }
 }

@@ -16,6 +16,8 @@ import net.minecraft.world.World;
 import com.KKKXia.NHToolbox.NHToolbox;
 import com.KKKXia.NHToolbox.config.ModConfig;
 import com.KKKXia.NHToolbox.manager.FloatingPlaceManager;
+import com.KKKXia.NHToolbox.network.PacketFloatingPlaceMove;
+import com.KKKXia.NHToolbox.network.PacketHandler;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -152,6 +154,7 @@ public class BlockPlacementHelper {
         return false;
     }
 
+    @SideOnly(Side.CLIENT)
     public static void movePlacedBlock(int dx, int dy, int dz) {
         Minecraft mc = Minecraft.getMinecraft();
         EntityPlayer player = mc.thePlayer;
@@ -231,6 +234,7 @@ public class BlockPlacementHelper {
             world
                 .playSoundEffect(newX + 0.5D, newY + 0.5D, newZ + 0.5D, oldBlock.stepSound.func_150496_b(), 1.0F, 0.8F);
             spawnMoveParticles(world, newX, newY, newZ);
+            sendMovePacket(lastX, lastY, lastZ, newX, newY, newZ);
         } else {
             world.setBlock(lastX, lastY, lastZ, oldBlock, oldMetadata, 3);
             if (tileNbt != null) {
@@ -280,6 +284,18 @@ public class BlockPlacementHelper {
             double vy = (world.rand.nextDouble() - 0.5D) * 0.1D;
             double vz = (world.rand.nextDouble() - 0.5D) * 0.1D;
             mc.theWorld.spawnParticle("portal", px, py, pz, vx, vy, vz);
+        }
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static void sendMovePacket(int oldX, int oldY, int oldZ, int newX, int newY, int newZ) {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            int dimensionId = mc.theWorld.provider.dimensionId;
+            PacketHandler.INSTANCE
+                .sendToServer(new PacketFloatingPlaceMove(oldX, oldY, oldZ, newX, newY, newZ, dimensionId));
+        } catch (Exception e) {
+            NHToolbox.LOG.warn("Failed to send move packet", e);
         }
     }
 
