@@ -32,11 +32,9 @@ public class ClientProxy extends CommonProxy {
 
         InputHandler inputHandler = new InputHandler();
         PlayerTickHandler playerTickHandler = new PlayerTickHandler();
-        FloatingPlaceRenderer renderer = new FloatingPlaceRenderer();
 
         MinecraftForge.EVENT_BUS.register(inputHandler);
         MinecraftForge.EVENT_BUS.register(playerTickHandler);
-        MinecraftForge.EVENT_BUS.register(renderer);
 
         FMLCommonHandler.instance()
             .bus()
@@ -44,9 +42,6 @@ public class ClientProxy extends CommonProxy {
         FMLCommonHandler.instance()
             .bus()
             .register(playerTickHandler);
-        FMLCommonHandler.instance()
-            .bus()
-            .register(renderer);
 
         MinecraftForge.EVENT_BUS.register(new RenderHandler());
         MinecraftForge.EVENT_BUS.register(new InteractHandler());

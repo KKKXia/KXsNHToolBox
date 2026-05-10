@@ -10,6 +10,4 @@ public class KeyBindings {
         "key.floating_place.toggle",
         Keyboard.KEY_G,
         "key.categories.nhtoolbox");
-
-    public static final KeyBinding[] ALL_KEY_BINDINGS = { TOGGLE_FLOATING_PLACE };
 }

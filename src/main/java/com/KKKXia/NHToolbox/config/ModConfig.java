@@ -10,7 +10,6 @@ public class ModConfig {
 
     public static Configuration config;
 
-    public static int toggleKey = 19;
     public static double rayTraceDistance = 1.0D;
     public static boolean enableParticles = true;
     public static boolean enablePreviewBox = true;
@@ -24,14 +23,6 @@ public class ModConfig {
     public static void syncConfig() {
         try {
             config.load();
-
-            toggleKey = config.getInt(
-                "toggleKey",
-                Configuration.CATEGORY_GENERAL,
-                19,
-                0,
-                255,
-                "Key code for toggling floating place mode (19 = KEY_G)\n快捷键设置。无视它，懒得改了");
 
             rayTraceDistance = config.getFloat(
                 "rayTraceDistance",
@@ -65,10 +56,6 @@ public class ModConfig {
         } catch (Exception e) {
             NHToolbox.LOG.error("Failed to load config", e);
         }
-    }
-
-    public static int getToggleKey() {
-        return toggleKey;
     }
 
     public static double getRayTraceDistance() {

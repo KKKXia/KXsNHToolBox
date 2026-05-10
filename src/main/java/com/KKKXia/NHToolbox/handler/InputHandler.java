@@ -41,7 +41,7 @@ public class InputHandler {
         boolean downPressed = Keyboard.isKeyDown(Keyboard.KEY_DOWN);
         boolean leftPressed = Keyboard.isKeyDown(Keyboard.KEY_LEFT);
         boolean rightPressed = Keyboard.isKeyDown(Keyboard.KEY_RIGHT);
-        boolean rPressed = Keyboard.isKeyDown(Keyboard.KEY_R);
+        boolean rPressed = Keyboard.isKeyDown(Keyboard.KEY_G);
 
         if (upPressed && !lastKeyStates[Keyboard.KEY_UP]) {
             BlockPlacementHelper.movePlacedBlock(0, 1, 0);
@@ -57,7 +57,7 @@ public class InputHandler {
             int dx = (int) Math.round(Math.sin((yaw - 90) * Math.PI / 180));
             int dz = (int) Math.round(-Math.cos((yaw - 90) * Math.PI / 180));
             BlockPlacementHelper.movePlacedBlock(dx, 0, dz);
-        } else if (rPressed && !lastKeyStates[Keyboard.KEY_R]) {
+        } else if (rPressed && !lastKeyStates[Keyboard.KEY_G]) {
             placeManager.resetLastPlacedBlock();
             mc.thePlayer.addChatMessage(new ChatComponentText("§e[浮空放置] 已重置，可以放置新方块。"));
         }
@@ -66,6 +66,6 @@ public class InputHandler {
         lastKeyStates[Keyboard.KEY_DOWN] = downPressed;
         lastKeyStates[Keyboard.KEY_LEFT] = leftPressed;
         lastKeyStates[Keyboard.KEY_RIGHT] = rightPressed;
-        lastKeyStates[Keyboard.KEY_R] = rPressed;
+        lastKeyStates[Keyboard.KEY_G] = rPressed;
     }
 }

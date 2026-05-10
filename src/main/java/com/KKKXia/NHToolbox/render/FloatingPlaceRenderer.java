@@ -10,8 +10,6 @@ import com.KKKXia.NHToolbox.config.ModConfig;
 import com.KKKXia.NHToolbox.helper.RayTraceHelper;
 import com.KKKXia.NHToolbox.manager.FloatingPlaceManager;
 
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -19,25 +17,6 @@ import cpw.mods.fml.relauncher.SideOnly;
 public class FloatingPlaceRenderer {
 
     private static final FloatingPlaceManager placeManager = FloatingPlaceManager.getInstance();
-
-    @SubscribeEvent
-    public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-
-        if (!placeManager.isFloatingPlaceMode() || !ModConfig.isPreviewBoxEnabled()) {
-            placeManager.clearPreviewPosition();
-            return;
-        }
-
-        int[] pos = RayTraceHelper.getPlacementPreviewPosition();
-        if (pos != null) {
-            placeManager.setPreviewPosition(pos[0], pos[1], pos[2]);
-        } else {
-            placeManager.clearPreviewPosition();
-        }
-    }
 
     public static void renderPreviewBox(float partialTicks) {
         Minecraft mc = Minecraft.getMinecraft();

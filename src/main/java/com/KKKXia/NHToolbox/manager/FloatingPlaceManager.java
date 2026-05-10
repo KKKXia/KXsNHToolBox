@@ -19,10 +19,6 @@ public class FloatingPlaceManager {
     private int lastPlacedBlockX = -1;
     private int lastPlacedBlockY = -1;
     private int lastPlacedBlockZ = -1;
-    private int previewBlockX = 0;
-    private int previewBlockY = 0;
-    private int previewBlockZ = 0;
-    private boolean hasPreviewPosition = false;
 
     private FloatingPlaceManager() {}
 
@@ -80,33 +76,6 @@ public class FloatingPlaceManager {
         return lastPlacedBlockX != -1 && lastPlacedBlockY != -1 && lastPlacedBlockZ != -1;
     }
 
-    public boolean hasPreviewPosition() {
-        return hasPreviewPosition;
-    }
-
-    public int getPreviewBlockX() {
-        return previewBlockX;
-    }
-
-    public int getPreviewBlockY() {
-        return previewBlockY;
-    }
-
-    public int getPreviewBlockZ() {
-        return previewBlockZ;
-    }
-
-    public void setPreviewPosition(int x, int y, int z) {
-        this.previewBlockX = x;
-        this.previewBlockY = y;
-        this.previewBlockZ = z;
-        this.hasPreviewPosition = true;
-    }
-
-    public void clearPreviewPosition() {
-        this.hasPreviewPosition = false;
-    }
-
     public void activateFloatingPlaceMode() {
         this.currentMode = Mode.PLACING;
         EntityPlayer player = Minecraft.getMinecraft().thePlayer;
@@ -121,7 +90,6 @@ public class FloatingPlaceManager {
         this.lastPlacedBlockX = -1;
         this.lastPlacedBlockY = -1;
         this.lastPlacedBlockZ = -1;
-        this.hasPreviewPosition = false;
         EntityPlayer player = Minecraft.getMinecraft().thePlayer;
         if (player != null) {
             player.addChatComponentMessage(new ChatComponentText("§c[浮空放置] 模式已关闭！"));
