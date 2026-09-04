@@ -1,115 +1,130 @@
 package com.KKKXia.NHToolbox.items;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 
-import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.Vec3;
-import net.minecraft.world.World;
+import net.minecraft.util.StatCollector;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.event.entity.player.ItemTooltipEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent.Action;
 
+import appeng.api.AEApi;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.IStorageBus;
-import appeng.api.parts.SelectedPart;
 import appeng.api.storage.StorageName;
 import appeng.api.storage.data.IAEStack;
-import appeng.core.CreativeTab;
-import appeng.core.features.AEFeature;
 import appeng.items.storage.ItemViewCell;
 import appeng.tile.inventory.IAEStackInventory;
-import appeng.util.Platform;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 /**
- * 基于 {@link ItemViewCell} 的扩展显示元件。
+ * 扩展显示元件 —— 实现为“AE2 原版显示元件（{@link ItemViewCell}）物品 + NBT 标记”的变体，
+ * 而非独立注册的新物品。
  * <p>
- * 新增功能：手持本元件右键存储总线（物品存储总线，流体存储总线同样继承 {@link IStorageBus}）时，
- * 将存储总线配置栏中标记的全部物品/流体复制到本元件的配置栏中。
- * 若本元件剩余格不足，则在聊天栏提示“空间不足”。
+ * 原因：AE2 终端侧边栏的 VIEW_CELL 插槽使用 <b>精确物品实例</b> 校验
+ * （{@code items.viewCell().isSameAs(stack)}，内部比较 Item 实例），
+ * 且过滤逻辑 {@link ItemViewCell#createFilter} 使用 {@code instanceof ItemViewCell} 判断。
+ * 因此任何独立注册的新 Item 类（无论是否继承 ItemViewCell，还是直接实现 ICellWorkbenchItem）
+ * 都既无法放入侧边栏，也不会被过滤逻辑识别。
+ * <p>
+ * 本方案下：放入侧边栏、物品/流体过滤、Cell Workbench 兼容等全部走 AE2 原版路径（天然可用）；
+ * 新增功能（手持本元件右键存储总线，将总线配置栏中的物品/流体全部复制到元件配置栏，
+ * 空间不足时聊天栏提示“空间不足”）通过 {@link PlayerInteractEvent} 实现。
  */
-public class ExtendItemViewCell extends ItemViewCell {
+public final class ExtendItemViewCell {
 
-    /** 注册后的单例实例 */
-    public static ExtendItemViewCell INSTANCE;
+    /** 扩展元件的 NBT 标记键 */
+    private static final String TAG_KEY = "NHToolboxExtend";
 
-    /** 未注册时调用，负责实例化并注册到物品注册表 */
+    private ExtendItemViewCell() {}
+
+    /** 初始化：注册事件处理器与合成配方（显示元件 + 存储总线 = 扩展显示元件） */
     public static void init() {
-        if (INSTANCE != null) {
-            return;
+        MinecraftForge.EVENT_BUS.register(new Handler());
+
+        final ItemStack viewCell = AEApi.instance().definitions().items().viewCell().maybeStack(1).orNull();
+        final ItemStack storageBus = AEApi.instance().definitions().parts().storageBus().maybeStack(1).orNull();
+        if (viewCell != null && storageBus != null) {
+            GameRegistry.addShapelessRecipe(createExtendedViewCell(), viewCell, storageBus);
         }
-        INSTANCE = new ExtendItemViewCell();
-        INSTANCE.setUnlocalizedName("extendItemViewCell");
-        // 直接复用 AE2 已验证可正常加载的显示元件贴图，避免自建资源域在本模组环境下加载失败（紫黑块问题）
-        INSTANCE.setTextureName("appliedenergistics2:ItemViewCell");
-        INSTANCE.setCreativeTab(CreativeTab.instance != null ? CreativeTab.instance : CreativeTabs.tabMisc);
-        GameRegistry.registerItem(INSTANCE, "ExtendItemViewCell");
     }
 
-    public ExtendItemViewCell() {
-        super();
+    /** 创建带标记的扩展显示元件 */
+    public static ItemStack createExtendedViewCell() {
+        final ItemStack cell = AEApi.instance().definitions().items().viewCell().maybeStack(1).orNull();
+        if (cell != null) {
+            final NBTTagCompound tag = cell.hasTagCompound() ? cell.getTagCompound() : new NBTTagCompound();
+            tag.setBoolean(TAG_KEY, true);
+            cell.setTagCompound(tag);
+        }
+        return cell;
     }
 
-    /**
-     * {@link ItemViewCell} 的构造器会调用 {@code setFeature(...)}，而该方法内部会访问
-     * {@code AEConfig.instance.isFeatureEnabled(...)}。若本模组的 preInit 早于 AE2 的 preInit
-     * （本模组未声明依赖时的默认排序下容易发生），AEConfig 尚未初始化，直接抛出 NullPointerException。
-     * <p>
-     * 本物品由 NHToolbox 自行通过 {@link GameRegistry} 注册，并不使用 AE2 的特性系统，
-     * 因此这里将 {@code setFeature} 覆写为空实现，避免构造阶段依赖 AE2 的配置加载顺序。
-     */
-    @Override
-    public void setFeature(final EnumSet<AEFeature> features) {
-        // 不需要 AE2 的特性注册，见类注释。
-    }
-
-    /**
-     * Forge 提供的钩子，在方块激活（如存储总线打开 GUI）之前被调用。
-     * 在 1.7.10 中其执行时机早于 {@code Block.onBlockActivated}，
-     * 因此可以拦截右键事件，避免存储总线 GUI 干扰复制操作。
-     */
-    @Override
-    public boolean onItemUseFirst(final ItemStack stack, final EntityPlayer player, final World world, final int x,
-        final int y, final int z, final int side, final float hitX, final float hitY, final float hitZ) {
-        if (Platform.isClient()) {
-            return false;
-        }
-
-        final TileEntity te = world.getTileEntity(x, y, z);
-        if (!(te instanceof IPartHost host)) {
-            return false;
-        }
-
-        final IStorageBus bus = findStorageBus(host, side, hitX, hitY, hitZ);
-        if (bus == null) {
-            return false;
-        }
-
-        copyConfiguration(bus, this.getConfigAEInventory(stack), player, stack);
-        // 右键已被本元件处理，阻止存储总线后续打开 GUI
-        return true;
+    /** 判断物品是否为扩展显示元件（AE2 显示元件 + 标记 NBT） */
+    public static boolean isExtendedViewCell(final ItemStack stack) {
+        return stack != null
+                && stack.getItem() instanceof ItemViewCell
+                && stack.hasTagCompound()
+                && stack.getTagCompound().getBoolean(TAG_KEY);
     }
 
     /**
-     * 从电缆总线容器中查找被点击的存储总线部件。
-     * <p>
-     * 优先使用射线命中的精确位置，失败时回退到点击的方块面，最后遍历所有方向。
+     * 事件处理器：
+     * <ul>
+     * <li>{@link PlayerInteractEvent}：手持扩展显示元件右键存储总线时，复制总线配置栏标记到元件，
+     * 并取消事件以阻止存储总线 GUI 打开。</li>
+     * <li>{@link ItemTooltipEvent}：为扩展显示元件添加说明信息。</li>
+     * </ul>
      */
-    private IStorageBus findStorageBus(final IPartHost host, final int side, final float hitX, final float hitY,
-        final float hitZ) {
-        if (hitX >= 0.0F && hitX <= 1.0F && hitY >= 0.0F && hitY <= 1.0F && hitZ >= 0.0F && hitZ <= 1.0F) {
-            final SelectedPart selected = host.selectPart(Vec3.createVectorHelper(hitX, hitY, hitZ));
-            if (selected != null && selected.part instanceof IStorageBus bus) {
-                return bus;
+    public static final class Handler {
+
+        @SubscribeEvent
+        public void onPlayerInteract(final PlayerInteractEvent event) {
+            if (event.action != Action.RIGHT_CLICK_BLOCK || event.world.isRemote) {
+                return;
+            }
+
+            final ItemStack held = event.entityPlayer.getHeldItem();
+            if (!isExtendedViewCell(held)) {
+                return;
+            }
+
+            final TileEntity te = event.world.getTileEntity(event.x, event.y, event.z);
+            if (!(te instanceof IPartHost host)) {
+                return;
+            }
+
+            final IStorageBus bus = findStorageBus(host, event.face);
+            if (bus == null) {
+                return;
+            }
+
+            copyConfiguration(bus, held, event.entityPlayer);
+            // 本次右键已被本元件处理，阻止存储总线随后打开 GUI
+            event.setCanceled(true);
+        }
+
+        @SubscribeEvent
+        public void onItemTooltip(final ItemTooltipEvent event) {
+            if (isExtendedViewCell(event.itemStack)) {
+                event.toolTip.add(
+                        EnumChatFormatting.DARK_GRAY + StatCollector.translateToLocal("nhtoolbox.extendViewCell.lore"));
             }
         }
+    }
 
+    /** 从电缆总线容器中按点击面查找存储总线部件，找不到则遍历所有方向 */
+    private static IStorageBus findStorageBus(final IPartHost host, final int side) {
         final IPart part = host.getPart(ForgeDirection.getOrientation(side));
         if (part instanceof IStorageBus bus) {
             return bus;
@@ -129,8 +144,12 @@ public class ExtendItemViewCell extends ItemViewCell {
      * 将存储总线配置栏中的标记（物品或流体包）复制到显示元件的配置栏。
      * 已存在的同类标记不会重复占用格位；剩余格不足时提示“空间不足”。
      */
-    private void copyConfiguration(final IStorageBus bus, final IAEStackInventory cellConfig, final EntityPlayer player,
-        final ItemStack cellStack) {
+    private static void copyConfiguration(final IStorageBus bus, final ItemStack cellStack, final EntityPlayer player) {
+        if (!(cellStack.getItem() instanceof ItemViewCell viewCell)) {
+            return;
+        }
+
+        final IAEStackInventory cellConfig = viewCell.getConfigAEInventory(cellStack);
         final IAEStackInventory busConfig = bus.getAEInventoryByName(StorageName.CONFIG);
         if (busConfig == null) {
             return;
@@ -169,13 +188,12 @@ public class ExtendItemViewCell extends ItemViewCell {
             slot++;
         }
 
-        player.addChatComponentMessage(
-            new ChatComponentText(
+        player.addChatComponentMessage(new ChatComponentText(
                 EnumChatFormatting.GREEN + "已将 " + toCopy.size() + " 个标记复制到 " + cellStack.getDisplayName()));
     }
 
     /** 判断元件配置栏中是否已存在同类标记 */
-    private boolean containsType(final IAEStackInventory inventory, final IAEStack<?> entry) {
+    private static boolean containsType(final IAEStackInventory inventory, final IAEStack<?> entry) {
         for (int i = 0; i < inventory.getSizeInventory(); i++) {
             final IAEStack<?> slot = inventory.getAEStackInSlot(i);
             if (slot != null && slot.isSameType(entry)) {
@@ -186,7 +204,7 @@ public class ExtendItemViewCell extends ItemViewCell {
     }
 
     /** 统计配置栏中的空格数量 */
-    private int countEmptySlots(final IAEStackInventory inventory) {
+    private static int countEmptySlots(final IAEStackInventory inventory) {
         int empty = 0;
         for (int i = 0; i < inventory.getSizeInventory(); i++) {
             if (inventory.getAEStackInSlot(i) == null) {
