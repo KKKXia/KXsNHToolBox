@@ -12,7 +12,15 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = NHToolbox.MODID, version = NHToolbox.VERSION, name = "NHToolbox", acceptedMinecraftVersions = "[1.7.10]")
+@Mod(
+    modid = NHToolbox.MODID,
+    version = NHToolbox.VERSION,
+    name = "NHToolbox",
+    acceptedMinecraftVersions = "[1.7.10]",
+    // 声明对 AE2 的依赖，确保 FML 将本模组排在 Applied Energistics 2 之后加载：
+    // 否则本模组的 preInit 可能早于 AE2 的 preInit 执行（AEConfig.instance 尚未初始化），
+    // 在注册 ExtendItemViewCell（ItemViewCell 构造器会访问 AEConfig.instance）时抛出 NullPointerException。
+    dependencies = "required-after:appliedenergistics2")
 public class NHToolbox {
 
     public static final String MODID = "NHToolbox";

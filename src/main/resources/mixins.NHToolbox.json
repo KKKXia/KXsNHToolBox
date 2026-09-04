@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "minVersion": "0.8.5-GTNH",
+  "package": "com.KKKXia.NHToolbox.mixin",
+  "refmap": "mixins.NHToolbox.refmap.json",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": ["MixinSlotRestrictedInput"],
+  "client": [],
+  "server": []
+}
