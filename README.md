@@ -1,55 +1,53 @@
-# NHToolbox 模组
+<h1 align="center">KXsNHToolBox</h1>
+
+<p align="center">
+  <a href="https://github.com/KKKXia/KXsNHToolBox/releases">
+    <img src="https://img.shields.io/github/v/release/KKKXia/KXsNHToolBox" alt="Latest Release">
+  </a>
+  <a href="https://github.com/KKKXia/KXsNHToolBox/stargazers">
+    <img src="https://img.shields.io/github/stars/KKKXia/KXsNHToolBox?logo=github" alt="GitHub Stars">
+  </a>
+  <a href="https://github.com/KKKXia/KXsNHToolBox/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/KKKXia/KXsNHToolBox?logo=apache" alt="License">
+  </a>
 
 ## 项目概述
+KXsNHToolbox 是一个为 GT NewHorizon 开发的工具型模组
 
-NHToolbox 是一个为 GT NewHorizon 开发的工具型模组，提供了便捷的浮空放置模式功能.
+通过添加一系列作者认为有用的 ~~（大概吧）~~ 功能改善游戏体验
+
+> [!WARNING]
+> 本模组非GTNH官方模组，请勿在官方场合讨论相关内容
 
 ## 核心功能
 
-### 1. 浮空放置模式
-- **快捷键激活**：默认按下 `G` 键激活/关闭浮空放置模式
-- **视角方向放置**：右键点击可在视角方向的绿色框中放置手中的可放置物品
+### 新增物品
 
-### 2. 位置调整系统
-- **方向键控制**：使用方向键调整已放置方块的位置
-  - 上方向键：向上移动1个方块单位
-  - 下方向键：向下移动1个方块单位
-  - 左方向键：向玩家左手方向移动1个方块单位
-  - 右方向键：向玩家右手方向移动1个方块单位
-- **碰撞检测**：移动过程中会检测碰撞
+<details>
+<summary><b> 扩展显示元件 </b></summary>
+<ul>
+  <li> 由显示元件合成而来 </li>
+  <li> 右键存储总线（物品/流体）直接复制存储总线标记内容 </li>
+  <li> 其他内容与原版显示元件一致 </li>
+</ul>
+</details>
 
-### 3. 模式状态管理
-- 简单来讲就是第一次按下 G 键启动浮空放置模式，随后若没有放置任何物品则再次按下 G 键则关闭浮空放置模式；若此前放置过物品按下 G 键则提示 Reset 上一次放置的方块固定，此时回到第一次按下 G 键的情况
-```
-         ┌─────────────────────── 右键空中放置方块 ────────────────────────┐
-         │                                                               │
-         ▼                                                               │
-┌────┐  G键  ┌─────────┐                                         ┌───────────┐
-│IDLE│ ────→ │PLACING  │                                         │ADJUSTING  │
-└────┘       │         │ ── ── ── G键（尚未放置任何方块）── ── ──→└───────────┘
-             └─────────┘                                         │方向键微调  │
-                  ▲                                              └───────────┘
-                  │                                                    │
-                  └────────── G键（已放置过方块，重置继续）─────────┘
-```
+### 新增功能
 
-## 配置说明
+<details>
+<summary><b> 浮空放置 </b></summary>
+<div align="center">
+  <img src="image/浮空放置操作示意图.png" width="100%" />
+</div>
+<ul>
+  <li> 默认按下 `G` 键激活/关闭浮空放置模式 </li>
+  <li> 右键点击可在视角方向的绿色框中放置手中的可放置物品 </li>
+  <li> 使用方向键调整已放置方块的位置 </li>
+</ul>
+</details>
 
-### 快捷键配置
-默认快捷键为 `G` 键,在控制中修改
-
-### 游戏内提示
-- 激活模式时：聊天栏显示 "§a浮空放置模式已激活！"
-- 关闭模式时：聊天栏显示 "§c浮空放置模式已关闭！"
-- 放置失败时：会显示相应的错误提示
-
-## 许可证
-
-本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
-
-## 联系方式
-
-- **项目地址**：[GitHub 仓库链接](https://github.com/KKKXia/KXsNHToolbox)
-- **作者**：KKKXia
-
+### 适配版本
+|  GTNH 版本  | 起始兼容版本 | 最新兼容版本 |                                                           下载                                                            | 维护状态 |
+|:---------:|:------------:|:------------:|:-------------------------------------------------------------------------------------------------------------------------:| :--: |
+|   2.9+    |    0.2.0     |    0.2.0     | [![0.2.0](https://img.shields.io/badge/release-v0.2.0-00FF00)](https://github.com/KKKXia/KXsNHToolBox/releases/tag/0.2.0) |  ✔️  |
 ---

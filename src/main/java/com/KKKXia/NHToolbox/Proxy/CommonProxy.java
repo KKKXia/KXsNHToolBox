@@ -1,6 +1,7 @@
 package com.KKKXia.NHToolbox.Proxy;
 
 import com.KKKXia.NHToolbox.config.ModConfig;
+import com.KKKXia.NHToolbox.items.ExtendItemViewCell;
 import com.KKKXia.NHToolbox.network.PacketHandler;
 
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -13,6 +14,7 @@ public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         ModConfig.init(event.getSuggestedConfigurationFile());
         PacketHandler.init();
+        ExtendItemViewCell.init();
     }
 
     public void init(FMLInitializationEvent event) {}
