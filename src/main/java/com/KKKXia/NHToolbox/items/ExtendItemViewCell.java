@@ -1,5 +1,7 @@
 package com.KKKXia.NHToolbox.items;
 
+import static appeng.util.item.AEFluidStackType.FLUID_STACK_TYPE;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,9 +23,12 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.IStorageBus;
 import appeng.api.storage.StorageName;
+import appeng.api.storage.data.IAEFluidStack;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.items.storage.ItemViewCell;
 import appeng.tile.inventory.IAEStackInventory;
+import appeng.util.Platform;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
 
@@ -123,7 +128,7 @@ public final class ExtendItemViewCell {
         }
     }
 
-    /** 从电缆总线容器中按点击面查找存储总线部件，找不到则遍历所有方向 */
+    /** 从ME线缆总线容器中按点击面查找存储总线部件，找不到则遍历所有方向 */
     private static IStorageBus findStorageBus(final IPartHost host, final int side) {
         final IPart part = host.getPart(ForgeDirection.getOrientation(side));
         if (part instanceof IStorageBus bus) {
@@ -157,10 +162,25 @@ public final class ExtendItemViewCell {
 
         // 收集需要新增的标记（跳过已经存在于元件中的同类标记）
         final List<IAEStack<?>> toCopy = new ArrayList<>();
+        // 流体存储总线（PartFluidStorageBus，继承 PartStorageBus 并返回 FLUID_STACK_TYPE）的
+        // 配置栏中，流体的标记形式是原生 IAEFluidStack（NBT 载入时由流体包转换而来），
+        // 因此复制时不能只接受物品栈；同时把可能以“流体包物品”形式存在的条目规范化为原生流体栈，
+        // 这样 ItemViewCell.createFilter 生成的过滤列表才能正确匹配终端中的流体条目。
+        final boolean fluidBus = bus.getStackType() == FLUID_STACK_TYPE;
         for (int i = 0; i < busConfig.getSizeInventory(); i++) {
-            final IAEStack<?> entry = busConfig.getAEStackInSlot(i);
-            // 只复制以物品形式存储的标记（流体存储总线中的流体以流体包 ItemFluidPacket 形式存储，同样属于物品栈）
-            if (entry != null && entry.isItem() && !containsType(cellConfig, entry)) {
+            IAEStack<?> entry = busConfig.getAEStackInSlot(i);
+            if (entry == null) {
+                continue;
+            }
+
+            if (fluidBus && entry instanceof IAEItemStack ais) {
+                final IAEStack<?> converted = Platform.convertStackPacket(ais.getItemStack());
+                if (converted instanceof IAEFluidStack) {
+                    entry = converted;
+                }
+            }
+
+            if (!containsType(cellConfig, entry)) {
                 toCopy.add(entry);
             }
         }
