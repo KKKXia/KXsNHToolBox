@@ -49,5 +49,5 @@ KXsNHToolbox 是一个为 GT NewHorizon 开发的工具型模组
 ### 适配版本
 |  GTNH 版本  | 起始兼容版本 | 最新兼容版本 |                                                           下载                                                            | 维护状态 |
 |:---------:|:------------:|:------------:|:-------------------------------------------------------------------------------------------------------------------------:| :--: |
-|   2.9+    |    0.2.0     |    0.2.0     | [![0.2.0](https://img.shields.io/badge/release-v0.2.0-00FF00)](https://github.com/KKKXia/KXsNHToolBox/releases/tag/0.2.0) |  ✔️  |
+|   2.9+    |    0.2.0     |    0.2.0     | [![0.2.0](https://img.shields.io/badge/release-v0.2.0-00FF00)](https://github.com/KKKXia/KXsNHToolBox/releases/tag/v0.2.0) |  ✔️  |
 ---
