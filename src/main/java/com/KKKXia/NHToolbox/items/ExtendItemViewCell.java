@@ -57,8 +57,18 @@ public final class ExtendItemViewCell {
     public static void init() {
         MinecraftForge.EVENT_BUS.register(new Handler());
 
-        final ItemStack viewCell = AEApi.instance().definitions().items().viewCell().maybeStack(1).orNull();
-        final ItemStack storageBus = AEApi.instance().definitions().parts().storageBus().maybeStack(1).orNull();
+        final ItemStack viewCell = AEApi.instance()
+            .definitions()
+            .items()
+            .viewCell()
+            .maybeStack(1)
+            .orNull();
+        final ItemStack storageBus = AEApi.instance()
+            .definitions()
+            .parts()
+            .storageBus()
+            .maybeStack(1)
+            .orNull();
         if (viewCell != null && storageBus != null) {
             GameRegistry.addShapelessRecipe(createExtendedViewCell(), viewCell, storageBus);
         }
@@ -66,7 +76,12 @@ public final class ExtendItemViewCell {
 
     /** 创建带标记的扩展显示元件 */
     public static ItemStack createExtendedViewCell() {
-        final ItemStack cell = AEApi.instance().definitions().items().viewCell().maybeStack(1).orNull();
+        final ItemStack cell = AEApi.instance()
+            .definitions()
+            .items()
+            .viewCell()
+            .maybeStack(1)
+            .orNull();
         if (cell != null) {
             final NBTTagCompound tag = cell.hasTagCompound() ? cell.getTagCompound() : new NBTTagCompound();
             tag.setBoolean(TAG_KEY, true);
@@ -77,10 +92,10 @@ public final class ExtendItemViewCell {
 
     /** 判断物品是否为扩展显示元件（AE2 显示元件 + 标记 NBT） */
     public static boolean isExtendedViewCell(final ItemStack stack) {
-        return stack != null
-                && stack.getItem() instanceof ItemViewCell
-                && stack.hasTagCompound()
-                && stack.getTagCompound().getBoolean(TAG_KEY);
+        return stack != null && stack.getItem() instanceof ItemViewCell
+            && stack.hasTagCompound()
+            && stack.getTagCompound()
+                .getBoolean(TAG_KEY);
     }
 
     /**
@@ -123,7 +138,7 @@ public final class ExtendItemViewCell {
         public void onItemTooltip(final ItemTooltipEvent event) {
             if (isExtendedViewCell(event.itemStack)) {
                 event.toolTip.add(
-                        EnumChatFormatting.DARK_GRAY + StatCollector.translateToLocal("nhtoolbox.extendViewCell.lore"));
+                    EnumChatFormatting.DARK_GRAY + StatCollector.translateToLocal("nhtoolbox.extendViewCell.lore"));
             }
         }
     }
@@ -208,7 +223,8 @@ public final class ExtendItemViewCell {
             slot++;
         }
 
-        player.addChatComponentMessage(new ChatComponentText(
+        player.addChatComponentMessage(
+            new ChatComponentText(
                 EnumChatFormatting.GREEN + "已将 " + toCopy.size() + " 个标记复制到 " + cellStack.getDisplayName()));
     }
 
