@@ -1,2 +1,4 @@
 item.extendItemViewCell.name=扩展显示元件
 nhtoolbox.extendViewCell.lore=扩展显示元件：右键存储总线可复制其标记
+key.categories.nhtoolbox=NHToolbox
+key.nhtoolbox.lock_slot=锁定背包栏位

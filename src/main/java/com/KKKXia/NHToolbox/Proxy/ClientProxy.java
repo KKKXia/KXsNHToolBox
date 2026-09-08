@@ -1,5 +1,6 @@
 package com.KKKXia.NHToolbox.Proxy;
 
+import static com.KKKXia.NHToolbox.handler.KeyBindings.LOCK_SLOT;
 import static com.KKKXia.NHToolbox.handler.KeyBindings.TOGGLE_FLOATING_PLACE;
 
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -7,7 +8,9 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 
 import com.KKKXia.NHToolbox.handler.InputHandler;
+import com.KKKXia.NHToolbox.handler.KeyBindings;
 import com.KKKXia.NHToolbox.handler.PlayerTickHandler;
+import com.KKKXia.NHToolbox.handler.SlotLockHandler;
 import com.KKKXia.NHToolbox.manager.FloatingPlaceManager;
 import com.KKKXia.NHToolbox.render.FloatingPlaceRenderer;
 
@@ -32,9 +35,11 @@ public class ClientProxy extends CommonProxy {
 
         InputHandler inputHandler = new InputHandler();
         PlayerTickHandler playerTickHandler = new PlayerTickHandler();
+        SlotLockHandler slotLockHandler = new SlotLockHandler();
 
         MinecraftForge.EVENT_BUS.register(inputHandler);
         MinecraftForge.EVENT_BUS.register(playerTickHandler);
+        MinecraftForge.EVENT_BUS.register(slotLockHandler);
 
         FMLCommonHandler.instance()
             .bus()
@@ -42,6 +47,9 @@ public class ClientProxy extends CommonProxy {
         FMLCommonHandler.instance()
             .bus()
             .register(playerTickHandler);
+        FMLCommonHandler.instance()
+            .bus()
+            .register(slotLockHandler);
 
         MinecraftForge.EVENT_BUS.register(new RenderHandler());
         MinecraftForge.EVENT_BUS.register(new InteractHandler());
@@ -51,6 +59,9 @@ public class ClientProxy extends CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {
         super.postInit(event);
         ClientRegistry.registerKeyBinding(TOGGLE_FLOATING_PLACE);
+        ClientRegistry.registerKeyBinding(LOCK_SLOT);
+        // 默认键位 -98 与原版 keyBindPickBlock 相同，注册后需要恢复原版按键事件的归属
+        KeyBindings.fixPickBlockCollision();
     }
 
     @Override
