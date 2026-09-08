@@ -87,10 +87,19 @@ public class SlotLockHandler {
         }
 
         if (event.button != -1) {
+            int lockKey = KeyBindings.LOCK_SLOT.getKeyCode();
+            NHToolbox.LOG.info(
+                "[SlotLock][mouseevt] button={} state={} lockKey={} isLockKey={} screen={}",
+                event.button,
+                event.buttonstate,
+                lockKey,
+                isLockKey(event.button),
+                gui.getClass()
+                    .getSimpleName());
             // ---------- 锁定键（鼠标键绑定，含默认中键） ----------
             if (isLockKey(event.button)) {
                 if (event.buttonstate) {
-                    Slot slot = findPlayerSlot(gui, event.x, event.y);
+                    Slot slot = findPlayerSlot(gui, event.x, event.y, true);
                     if (slot != null) {
                         SlotLockManager.getInstance()
                             .toggle(slot.getSlotIndex(), slot.getStack());
@@ -127,7 +136,7 @@ public class SlotLockHandler {
 
             if (event.buttonstate) {
                 // 按下：阻止"直接放入"以及"从此开始一次拖拽"（同种堆叠放行）
-                Slot slot = findPlayerSlot(gui, event.x, event.y);
+                Slot slot = findPlayerSlot(gui, event.x, event.y, false);
                 if (slot != null && !SlotLockManager.getInstance()
                     .canAccept(slot.getSlotIndex(), held)) {
                     event.setCanceled(true);
@@ -135,7 +144,7 @@ public class SlotLockHandler {
             } else {
                 // 松开：拖到锁定槽上释放会被原版直接放入（clickType 0/5 分堆），
                 // 吞掉并清理原版拖拽残留状态（否则下次交互的预览/分配会错乱）
-                Slot slot = findPlayerSlot(gui, event.x, event.y);
+                Slot slot = findPlayerSlot(gui, event.x, event.y, false);
                 if (slot != null && !SlotLockManager.getInstance()
                     .canAccept(slot.getSlotIndex(), held)) {
                     event.setCanceled(true);
@@ -149,7 +158,7 @@ public class SlotLockHandler {
         if (isDragActive(gui)) {
             ItemStack held = MC.thePlayer.inventory.getItemStack();
             if (held != null) {
-                Slot slot = findPlayerSlot(gui, event.x, event.y);
+                Slot slot = findPlayerSlot(gui, event.x, event.y, false);
                 if (slot != null && !SlotLockManager.getInstance()
                     .canAccept(slot.getSlotIndex(), held)) {
                     event.setCanceled(true);
@@ -165,29 +174,40 @@ public class SlotLockHandler {
     // =====================================================================
     @SubscribeEvent
     public void onKey(InputEvent.KeyInputEvent event) {
-        if (KeyBindings.LOCK_SLOT.getKeyCode() < 0) {
+        GuiContainer gui = getGuiContainer();
+        if (gui == null) {
+            return; // 只在容器界面（背包/箱子等）响应；避开游戏内按键的日志噪音
+        }
+        int key = Keyboard.getEventKey();
+        boolean state = Keyboard.getEventKeyState();
+        int lockKey = KeyBindings.LOCK_SLOT.getKeyCode();
+        NHToolbox.LOG.info(
+            "[SlotLock][keyevt] key={} state={} lockKey={} match={} screen={}",
+            key,
+            state,
+            lockKey,
+            lockKey >= 0 && state && key == lockKey,
+            gui.getClass()
+                .getSimpleName());
+        if (lockKey < 0) {
             return; // 鼠标键绑定由 onMouse 处理，避免同一次点击触发两次切换
         }
-        if (!Keyboard.getEventKeyState()) {
+        if (!state) {
             return;
         }
-        if (Keyboard.getEventKey() != KeyBindings.LOCK_SLOT.getKeyCode()) {
+        if (key != lockKey) {
             return;
         }
         if (MC.thePlayer == null) {
             return;
         }
-        GuiContainer gui = getGuiContainer();
-        if (gui == null) {
-            return;
-        }
-        Slot slot = findPlayerSlot(gui, Mouse.getX(), Mouse.getY());
+        Slot slot = findPlayerSlot(gui, Mouse.getX(), Mouse.getY(), true);
         if (slot != null) {
             SlotLockManager.getInstance()
                 .toggle(slot.getSlotIndex(), slot.getStack());
             NHToolbox.LOG.info(
                 "[SlotLock] 键盘键 {} 切换栏位槽 {} -> 锁定状态 {}",
-                Keyboard.getEventKey(),
+                key,
                 slot.getSlotIndex(),
                 SlotLockManager.getInstance()
                     .getState(slot.getSlotIndex())
@@ -246,7 +266,7 @@ public class SlotLockHandler {
     }
 
     /** 命中判定：换算缩放坐标（与原版 GuiScreen.handleMouseInput 一致，Y 轴反转）后遍历玩家背包槽。 */
-    private static Slot findPlayerSlot(GuiContainer gui, int rawX, int rawY) {
+    private static Slot findPlayerSlot(GuiContainer gui, int rawX, int rawY, boolean logDiagnostics) {
         Integer guiLeft = getField(gui, GUI_LEFT);
         Integer guiTop = getField(gui, GUI_TOP);
         if (guiLeft == null || guiTop == null) {
@@ -255,6 +275,7 @@ public class SlotLockHandler {
         }
         int mx = rawX * gui.width / MC.displayWidth;
         int my = gui.height - rawY * gui.height / MC.displayHeight - 1;
+        Slot found = null;
         for (Slot slot : gui.inventorySlots.inventorySlots) {
             if (slot.inventory != MC.thePlayer.inventory) {
                 continue;
@@ -265,10 +286,27 @@ public class SlotLockHandler {
             int x = guiLeft + slot.xDisplayPosition;
             int y = guiTop + slot.yDisplayPosition;
             if (mx >= x - 1 && mx < x + 17 && my >= y - 1 && my < y + 17) {
-                return slot;
+                found = slot;
+                break;
             }
         }
-        return null;
+        if (found == null && logDiagnostics) {
+            NHToolbox.LOG.info(
+                "[SlotLock][find] 未命中玩家槽：rawX={} rawY={} mx={} my={} guiLeft={} guiTop={} "
+                    + "gui={}x{} display={}x{} slots={}",
+                rawX,
+                rawY,
+                mx,
+                my,
+                guiLeft,
+                guiTop,
+                gui.width,
+                gui.height,
+                MC.displayWidth,
+                MC.displayHeight,
+                gui.inventorySlots.inventorySlots.size());
+        }
+        return found;
     }
 
     private static void warnOnceLayoutFields() {
