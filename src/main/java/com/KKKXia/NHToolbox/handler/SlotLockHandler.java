@@ -12,9 +12,11 @@ import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
+import com.KKKXia.NHToolbox.NHToolbox;
 import com.KKKXia.NHToolbox.inventory.SlotLockManager;
 import com.KKKXia.NHToolbox.inventory.SlotLockState;
 
@@ -38,6 +40,11 @@ import cpw.mods.fml.common.gameevent.TickEvent;
  * entityRenderer.updateCameraAndRender(...)（内部调用 currentScreen.drawScreen）
  * 之后触发，已覆盖所有 GUI 内容（1.7.10 的 GuiScreenEvent.DrawScreenEvent 是
  * 从未被触发的死事件，不可用）。
+ *
+ * <p>
+ * 键位判定刻意不依赖 KeyBinding.isPressed()/内部哈希表（1.7.10 中该机制会被
+ * 后注册的同码键覆盖、且 mod 按键的 options.txt 保存值不会被自动加载），
+ * 而是：鼠标键直接比对按钮号（MouseEvent），键盘键直接比对 Keyboard.getEventKey()。
  */
 public class SlotLockHandler {
 
@@ -55,7 +62,16 @@ public class SlotLockHandler {
     private static final Field DRAG_ACTIVE = findField("field_147007_t");
     private static final Field DRAG_TARGETS = findField("field_147008_s");
 
+    private static boolean warnedLayoutFields = false;
+
     private boolean worldLoaded = false;
+
+    public SlotLockHandler() {
+        NHToolbox.LOG.info(
+            "[SlotLock] 输入拦截/渲染处理器已注册（锁定键：{}，键码 {}）",
+            KeyBindings.LOCK_SLOT.getKeyDescription(),
+            KeyBindings.LOCK_SLOT.getKeyCode());
+    }
 
     // =====================================================================
     // 输入拦截：在原版 GUI 处理之前，只有需要"吃掉点击"时才取消
@@ -71,19 +87,26 @@ public class SlotLockHandler {
         }
 
         if (event.button != -1) {
-            // ---------- 锁定键（默认中键） ----------
+            // ---------- 锁定键（鼠标键绑定，含默认中键） ----------
             if (isLockKey(event.button)) {
                 if (event.buttonstate) {
                     Slot slot = findPlayerSlot(gui, event.x, event.y);
                     if (slot != null) {
                         SlotLockManager.getInstance()
                             .toggle(slot.getSlotIndex(), slot.getStack());
-                        // 吞掉中键按下，阻止原版 GUI 的中键行为：
+                        NHToolbox.LOG.info(
+                            "[SlotLock] 鼠标键 {} 切换栏位槽 {} -> 锁定状态 {}",
+                            event.button,
+                            slot.getSlotIndex(),
+                            SlotLockManager.getInstance()
+                                .getState(slot.getSlotIndex())
+                                .getType());
+                        // 吞掉锁定键按下，阻止原版 GUI 的中键行为：
                         // 空手时触发 clickType 3（生存为空操作、创造为拾取），手持时开始拖拽
                         event.setCanceled(true);
                     }
                 } else if (!isDragActive(gui)) {
-                    // 没有拖拽进行中的原版中键抬起是 clickType 3（生存空操作），
+                    // 没有拖拽进行中的原版锁定键抬起是 clickType 3（生存空操作），
                     // 统一吞掉以避免与"锁定键"的语义不一致；按下已取消，不吞会错位
                     event.setCanceled(true);
                     // 被取消的抬起事件不会执行 KeyBinding.setKeyBindState(...)，
@@ -136,14 +159,19 @@ public class SlotLockHandler {
     }
 
     // =====================================================================
-    // 快捷键改绑为键盘键时的入口（鼠标键走 onMouse 直接比对按钮号）
+    // 快捷键改绑为键盘键时的入口（鼠标键走 onMouse 直接比对按钮号）。
+    // 注意：不比对 KeyBinding.isPressed() —— 它依赖内部哈希表，1.7.10 下
+    // 同码后注册者覆盖会使其失效；这里直接比对本次键盘事件的键码。
     // =====================================================================
     @SubscribeEvent
     public void onKey(InputEvent.KeyInputEvent event) {
         if (KeyBindings.LOCK_SLOT.getKeyCode() < 0) {
             return; // 鼠标键绑定由 onMouse 处理，避免同一次点击触发两次切换
         }
-        if (!KeyBindings.LOCK_SLOT.isPressed()) {
+        if (!Keyboard.getEventKeyState()) {
+            return;
+        }
+        if (Keyboard.getEventKey() != KeyBindings.LOCK_SLOT.getKeyCode()) {
             return;
         }
         if (MC.thePlayer == null) {
@@ -157,6 +185,13 @@ public class SlotLockHandler {
         if (slot != null) {
             SlotLockManager.getInstance()
                 .toggle(slot.getSlotIndex(), slot.getStack());
+            NHToolbox.LOG.info(
+                "[SlotLock] 键盘键 {} 切换栏位槽 {} -> 锁定状态 {}",
+                Keyboard.getEventKey(),
+                slot.getSlotIndex(),
+                SlotLockManager.getInstance()
+                    .getState(slot.getSlotIndex())
+                    .getType());
         }
     }
 
@@ -191,6 +226,7 @@ public class SlotLockHandler {
                 worldLoaded = true;
                 SlotLockManager.getInstance()
                     .load();
+                NHToolbox.LOG.info("[SlotLock] 已加载背包栏位锁定状态");
             }
         } else {
             worldLoaded = false;
@@ -214,6 +250,7 @@ public class SlotLockHandler {
         Integer guiLeft = getField(gui, GUI_LEFT);
         Integer guiTop = getField(gui, GUI_TOP);
         if (guiLeft == null || guiTop == null) {
+            warnOnceLayoutFields();
             return null;
         }
         int mx = rawX * gui.width / MC.displayWidth;
@@ -234,10 +271,18 @@ public class SlotLockHandler {
         return null;
     }
 
+    private static void warnOnceLayoutFields() {
+        if (!warnedLayoutFields) {
+            warnedLayoutFields = true;
+            NHToolbox.LOG.warn("[SlotLock] 无法读取 GuiContainer 的 guiLeft/guiTop 字段（反射失效），" + "栏位命中判定与渲染将失效");
+        }
+    }
+
     private static void renderSlotLocks(GuiContainer gui) {
         Integer guiLeft = getField(gui, GUI_LEFT);
         Integer guiTop = getField(gui, GUI_TOP);
         if (guiLeft == null || guiTop == null) {
+            warnOnceLayoutFields();
             return;
         }
 
