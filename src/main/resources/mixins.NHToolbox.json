@@ -5,7 +5,12 @@
   "refmap": "mixins.NHToolbox.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8",
-  "mixins": ["MixinContainerMergeLock"],
-  "client": [],
+  "mixins": [
+    "MixinAEBaseContainerLock",
+    "MixinAdaptorIInventoryLock",
+    "MixinAdaptorPlayerInventoryLock",
+    "MixinContainerMergeLock"
+  ],
+  "client": ["MixinGuiContainerLockInput", "MixinGuiContainerLockOverlay"],
   "server": []
 }

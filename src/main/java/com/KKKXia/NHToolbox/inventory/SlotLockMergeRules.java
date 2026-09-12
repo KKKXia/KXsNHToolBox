@@ -1,5 +1,6 @@
 package com.KKKXia.NHToolbox.inventory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.entity.player.InventoryPlayer;
@@ -11,7 +12,12 @@ import com.KKKXia.NHToolbox.NHToolbox;
 
 /**
  * 快捷移动（shift+左键）的锁定规则：让原版 {@code Container.mergeItemStack} 不把物品放进
- * "拒绝该物品的锁定栏位"，并在"快捷栏 -> 主背包"这一次合并里优先使用匹配的类型锁定格。
+ * "拒绝该物品的锁定栏位"，并且在物品进入玩家背包时优先放进匹配的类型锁定格。
+ *
+ * <p>
+ * 对方向不敏感、对容器不敏感：无论是背包内"快捷栏 -> 主背包"、还是箱子 / AE 终端 /
+ * 熔炉等界面"容器 -> 背包"，只要这次合并的目标范围里含玩家背包栏位就走优先逻辑；
+ * 反方向（"背包 -> 容器"）范围里没有玩家栏位，优先趟自然空转。
  *
  * <p>
  * 由 {@link com.KKKXia.NHToolbox.mixin.MixinContainerMergeLock} 调用。1.7.10 的
@@ -24,10 +30,6 @@ import com.KKKXia.NHToolbox.NHToolbox;
  * （{@link #needsInterception()}）直接返回 false，原版实现原样执行，零额外开销。
  */
 public final class SlotLockMergeRules {
-
-    /** 玩家主背包在 {@code ContainerPlayer.transferStackInSlot} 里的合并区间（快捷栏->背包，ContainerPlayer:177）。 */
-    private static final int MAIN_INVENTORY_START = 9;
-    private static final int MAIN_INVENTORY_END = 36;
 
     private SlotLockMergeRules() {}
 
@@ -50,9 +52,17 @@ public final class SlotLockMergeRules {
      * 与 {@code Container.mergeItemStack} 语义一致的合并实现，额外遵守栏位锁定。
      *
      * <p>
-     * 与原版的差异只有两点：合并时跳过"锁定且拒绝该物品"的栏位；当这次合并正是
-     * "快捷栏 -> 主背包"时，先尝试把物品放进匹配的类型锁定格。其余顺序、堆叠规则、
+     * 与原版的差异只有两点：合并时跳过"锁定且拒绝该物品"的栏位；如果这次合并的目标范围里
+     * 含玩家背包栏位，先尝试把物品放进其中"匹配的类型锁定格"。其余顺序、堆叠规则、
      * 通知调用（{@code onSlotChanged}）都与原版逐行对应。
+     *
+     * <p>
+     * 为什么不用固定的下标区间来判断"这是往背包里放"：不同容器调用 mergeItemStack 的
+     * 参数完全不同——背包内是 {@code (9, 36, false)}，箱子是
+     * {@code (箱子大小, 箱子大小+36, true)}（ContainerChest，反向、先填快捷栏），
+     * AE 终端等 mod 容器又是各自的一套。所以这里只按"范围内是否存在玩家背包栏位"来判定，
+     * 由 {@link #playerSlotIndex} 逐槽识别；范围里没有玩家栏位时（例如"背包 -> 箱子"）
+     * 优先趟只会做几十次极廉价的 instanceof 判定后空手而归。
      */
     public static boolean merge(List<Slot> slots, ItemStack stack, int startIndex, int endIndex, boolean reverseOrder) {
         if (stack == null || stack.stackSize <= 0 || startIndex >= endIndex) {
@@ -60,12 +70,10 @@ public final class SlotLockMergeRules {
         }
         boolean moved = false;
 
-        // (1) 优先：并入匹配的类型锁定格（用户要求——"先检查背包中是否有被锁定的 Type 格与之匹配"）
-        if (!reverseOrder && startIndex == MAIN_INVENTORY_START && endIndex == MAIN_INVENTORY_END) {
-            moved = mergeIntoMatchingLockedSlots(slots, stack, startIndex, endIndex);
-            if (stack.stackSize <= 0) {
-                return true;
-            }
+        // (1) 优先：并入匹配的类型锁定格（背包、箱子/AE 终端等任何"往背包里放"的合并都适用）
+        moved = mergeIntoMatchingLockedSlots(slots, stack, startIndex, endIndex);
+        if (stack.stackSize <= 0) {
+            return true;
         }
 
         // (2) 原版第一趟：并入已有同类堆叠（跳过拒绝该物品的锁定栏位）
@@ -115,7 +123,12 @@ public final class SlotLockMergeRules {
     }
 
     /**
-     * 第一优先：类型锁定且接受该物品的栏位。先补现有堆叠、再放空槽（与原版两趟顺序一致）。
+     * 第一优先：目标范围内"类型锁定且接受该物品"的玩家背包栏位。
+     * 先补现有堆叠、再放空槽（与原版两趟顺序一致）。
+     *
+     * <p>
+     * 范围内的非玩家栏位（箱子格子、AE 网络格、合成格……）会被 {@link #playerSlotIndex}
+     * 过滤掉，因此"背包 -> 箱子"这类合并在这一趟不会产生任何改动。
      */
     private static boolean mergeIntoMatchingLockedSlots(List<Slot> slots, ItemStack stack, int startIndex,
         int endIndex) {
@@ -166,6 +179,78 @@ public final class SlotLockMergeRules {
         int index = playerSlotIndex(slot);
         return index >= 0 && !SlotLockManager.getInstance()
             .canAccept(index, stack);
+    }
+
+    // =====================================================================
+    // AE2 专用：候选目标列表的过滤 + 优先（AE2 不走 Container.mergeItemStack）
+    // =====================================================================
+    /**
+     * 调整"候选目标栏位列表"：剔除拒绝该物品的锁定栏位，并把匹配的类型锁定格提到最前。
+     *
+     * <p>
+     * AE2 的 {@code AEBaseContainer.transferStackInSlot} 完全自己实现快捷移动
+     * （不像原版那样调用 {@code Container.mergeItemStack}），它决定"能放到哪里"的唯一入口是
+     * {@code getValidDestinationSlots}，所以在这里过滤/重排就等于同时满足两条规则：
+     * 空锁定格不再被塞入，且类型锁定格优先拿到匹配物品。
+     *
+     * <p>
+     * 目标列表里没有玩家背包栏位时（例如"背包 -> ME 网络"）原样返回，零分配。
+     *
+     * @return 原列表（无需调整）或调整后的新列表
+     */
+    public static <T extends Slot> List<T> adjustDestinationSlots(List<T> slots, ItemStack stack) {
+        if (slots == null || slots.isEmpty() || stack == null) {
+            return slots;
+        }
+        SlotLockManager manager = SlotLockManager.getInstance();
+        boolean hasLocked = false;
+        boolean hasPreferred = false;
+        for (T slot : slots) {
+            int index = playerSlotIndex(slot);
+            if (index < 0) {
+                continue;
+            }
+            SlotLockState state = manager.getState(index);
+            if (!state.isLocked()) {
+                continue;
+            }
+            hasLocked = true;
+            if (isPreferredTarget(state, stack)) {
+                hasPreferred = true;
+                break;
+            }
+        }
+        if (!hasLocked) {
+            return slots; // 目标里没有锁定格：原样返回
+        }
+
+        List<T> adjusted = new ArrayList<T>(slots.size());
+        if (hasPreferred) {
+            for (T slot : slots) {
+                if (isPreferredTarget(slot, stack)) {
+                    adjusted.add(slot); // 匹配的类型锁定格优先
+                }
+            }
+        }
+        for (T slot : slots) {
+            if (isBlocked(slot, stack) || (hasPreferred && isPreferredTarget(slot, stack))) {
+                continue; // 拒绝该物品的锁定格剔除；优先格已加过
+            }
+            adjusted.add(slot);
+        }
+        return adjusted;
+    }
+
+    private static boolean isPreferredTarget(Slot slot, ItemStack stack) {
+        int index = playerSlotIndex(slot);
+        return index >= 0 && isPreferredTarget(
+            SlotLockManager.getInstance()
+                .getState(index),
+            stack);
+    }
+
+    private static boolean isPreferredTarget(SlotLockState state, ItemStack stack) {
+        return state.getType() == SlotLockState.LockType.TYPE && state.accepts(stack);
     }
 
     /**

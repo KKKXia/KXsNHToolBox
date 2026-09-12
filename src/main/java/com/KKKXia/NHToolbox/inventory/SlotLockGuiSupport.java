@@ -19,21 +19,22 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
 import com.KKKXia.NHToolbox.NHToolbox;
+import com.KKKXia.NHToolbox.config.ModConfig;
 import com.KKKXia.NHToolbox.handler.KeyBindings;
 
 /**
  * 背包栏位锁定的界面层支持工具。
  *
  * <p>
- * 本类只提供纯静态判定/渲染逻辑；实际的事件覆写位于
- * {@link SlotLockGuiInventory} / {@link SlotLockGuiCreative}。
- * 所有方法都接收调用方（子类）解析好的鼠标坐标与 guiLeft/guiTop，
- * 以便子类直接访问 GuiContainer 的 protected 字段（无需反射）。
+ * 本类只提供纯静态判定/渲染逻辑；实际的事件注入位于
+ * {@code MixinGuiContainerLockInput}（输入）与 {@code MixinGuiContainerLockOverlay}（渲染），
+ * 它们都挂在 {@code GuiContainer} 上，因此对背包、箱子、熔炉、AE 终端等所有容器界面一致生效。
+ * 注入方负责提供 guiLeft/guiTop 与鼠标坐标（都是 GuiContainer 的 protected 字段，无需反射）。
  *
  * <p>
- * 渲染必须发生在 {@code drawGuiContainerForegroundLayer} 内：原版绘制顺序为
- * 槽位物品(GuiContainer.drawScreen:114) -> 前景层(134) -> 手持/拖拽物品 -> tooltip(186)，
- * 画在前景层才能既盖住物品又不遮挡 tooltip（tooltip 自身还会关闭深度测试）。
+ * 渲染必须发生在 {@code drawGuiContainerForegroundLayer} 调用之后、手持物品与 tooltip 之前：
+ * 原版绘制顺序为槽位物品(GuiContainer.drawScreen:114) -> 前景层(134) -> 手持/拖拽物品 -> tooltip(186)，
+ * 画在这个位置才能既盖住物品又不遮挡 tooltip（tooltip 自身还会关闭深度测试）。
  */
 public final class SlotLockGuiSupport {
 
@@ -65,6 +66,17 @@ public final class SlotLockGuiSupport {
 
     private static Minecraft mc() {
         return Minecraft.getMinecraft();
+    }
+
+    /**
+     * 功能是否启用（配置开关）。
+     *
+     * <p>
+     * 输入入口都要检查：mixin 是常驻的，功能关闭时如果还允许"切换锁定"，
+     * 玩家中键点一下就会写出锁定数据、破坏"一键开关"的语义。
+     */
+    private static boolean enabled() {
+        return ModConfig.isSlotLockEnabled();
     }
 
     // =====================================================================
@@ -147,6 +159,9 @@ public final class SlotLockGuiSupport {
     // =====================================================================
     public static boolean handleMouseClick(GuiContainer gui, int mouseX, int mouseY, int mouseButton, int guiLeft,
         int guiTop) {
+        if (!enabled()) {
+            return false;
+        }
         if (isLockMouseButton(mouseButton)) {
             Slot slot = slotAt(gui, mouseX, mouseY, guiLeft, guiTop);
             if (slot != null) {
@@ -176,6 +191,9 @@ public final class SlotLockGuiSupport {
      * 子类的 mouseClickMove 与 mouseMovedOrUp 共用这一判定。
      */
     public static boolean isHeldItemBlockedAt(GuiContainer gui, int mouseX, int mouseY, int guiLeft, int guiTop) {
+        if (!enabled()) {
+            return false;
+        }
         ItemStack held = heldItem();
         if (held == null) {
             return false;
@@ -195,6 +213,9 @@ public final class SlotLockGuiSupport {
      */
     public static boolean isHotbarSwapBlocked(GuiContainer gui, int keyCode, int mouseX, int mouseY, int guiLeft,
         int guiTop) {
+        if (!enabled()) {
+            return false;
+        }
         int hotbarIndex = hotbarIndexFor(keyCode);
         if (hotbarIndex < 0) {
             return false;
@@ -232,6 +253,9 @@ public final class SlotLockGuiSupport {
      * @return 是否真的切换了（只有 true 才应该吞掉这次按键，否则会把输入框字符一起吃掉）
      */
     public static boolean handleKeyboardToggle(GuiContainer gui, int mouseX, int mouseY, int guiLeft, int guiTop) {
+        if (!enabled()) {
+            return false;
+        }
         Slot slot = slotAt(gui, mouseX, mouseY, guiLeft, guiTop);
         if (slot == null) {
             return false;
@@ -261,14 +285,20 @@ public final class SlotLockGuiSupport {
      * 绘制锁定槽边框与淡化图标。
      *
      * <p>
-     * 该层的坐标系已由 GuiContainer.drawScreen 平移过 (guiLeft, guiTop)，
+     * 现在由 {@code MixinGuiContainerLockOverlay} 对**所有**容器界面调用
+     * （箱子、熔炉、工作台、AE 终端……），注入点在 GuiContainer.drawScreen 调用前景层之后，
+     * 该位置的坐标系已平移过 (guiLeft, guiTop)、光照/深度状态与原前景层入口一致。
      * 因此这里直接使用 slot.xDisplayPosition / yDisplayPosition。
      * 进出时必须保持：LIGHTING=关、LIGHT0/LIGHT1/COLOR_MATERIAL=开、混合函数 (770,771,1,0)。
      */
     public static void renderLocks(GuiContainer gui) {
+        if (!SlotLockManager.getInstance()
+            .hasAnyLock()) {
+            return; // 没有任何锁定（含功能关闭）：O(1) 返回，连槽位表都不遍历
+        }
         collectVisibleLockedSlots(gui);
         if (LOCKED_SLOTS.isEmpty()) {
-            return; // 没有锁定：完全不触碰 GL 状态
+            return; // 当前界面没有锁定栏位：完全不触碰 GL 状态
         }
 
         collectGhostSlots();
