@@ -51,8 +51,10 @@ public class SlotLockGuiInventory extends GuiInventory {
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        super.drawScreen(mouseX, mouseY, partialTicks);
-        SlotLockGuiSupport.renderLocks(this, this.guiLeft, this.guiTop);
+    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
+        super.drawGuiContainerForegroundLayer(mouseX, mouseY);
+        // 前景层位于"槽位物品(之后) 与 tooltip(之前)"之间，在此绘制边框
+        // 既盖住槽位物品，又不会遮挡 tooltip（原版 tooltip 在本层之后绘制）
+        SlotLockGuiSupport.renderLocks(this);
     }
 }

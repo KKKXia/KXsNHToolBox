@@ -141,8 +141,20 @@ public final class SlotLockGuiSupport {
                 .getType());
     }
 
-    /** 在 super.drawScreen 之后调用：边框 + 类型锁定的淡化图标。 */
-    public static void renderLocks(GuiContainer gui, int guiLeft, int guiTop) {
+    /**
+     * 绘制锁定槽边框与淡化图标。
+     *
+     * <p>
+     * 必须在 {@code drawGuiContainerForegroundLayer} 内调用：原版绘制顺序为
+     * 槽位物品(GuiContainer.drawScreen:114) -> 前景层(134) -> 手持/拖拽物品 -> tooltip(186)，
+     * 画在前景层才能既盖住物品又不遮挡 tooltip。
+     *
+     * <p>
+     * 该层的坐标系已由 GuiContainer.drawScreen 平移过 (guiLeft, guiTop)，
+     * 因此这里直接使用 slot.xDisplayPosition / yDisplayPosition；
+     * 且该层内光照与深度测试均为禁用状态，绘制时不要改变这两个状态。
+     */
+    public static void renderLocks(GuiContainer gui) {
         SlotLockManager manager = SlotLockManager.getInstance();
         boolean anyLocked = false;
         for (Slot slot : (List<Slot>) gui.inventorySlots.inventorySlots) {
@@ -164,7 +176,6 @@ public final class SlotLockGuiSupport {
         }
 
         GL11.glDisable(GL11.GL_LIGHTING);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
         for (Slot slot : (List<Slot>) gui.inventorySlots.inventorySlots) {
             if (slot.inventory != MC.thePlayer.inventory) {
                 continue;
@@ -177,8 +188,8 @@ public final class SlotLockGuiSupport {
             if (!state.isLocked()) {
                 continue;
             }
-            int x = guiLeft + slot.xDisplayPosition;
-            int y = guiTop + slot.yDisplayPosition;
+            int x = slot.xDisplayPosition;
+            int y = slot.yDisplayPosition;
             int color = state.getType() == SlotLockState.LockType.EMPTY ? COLOR_EMPTY_LOCK : COLOR_TYPE_LOCK;
 
             // 彩色小方框：2px 宽的四条边
@@ -202,7 +213,7 @@ public final class SlotLockGuiSupport {
                 }
             }
         }
-        GL11.glEnable(GL11.GL_LIGHTING);
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        // 恢复到本层入口状态（前景层光照为禁用；深度测试保持调用方原状，不可擅自开启）
+        GL11.glDisable(GL11.GL_LIGHTING);
     }
 }
