@@ -23,15 +23,15 @@ public class SlotLockGuiInventory extends GuiInventory {
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
-        if (SlotLockGuiSupport.shouldBlockDragMove(this, mouseX, mouseY, this.guiLeft, this.guiTop)) {
-            return; // 不把锁定槽加入拖拽目标集合
+        if (SlotLockGuiSupport.isHeldItemBlockedAt(this, mouseX, mouseY, this.guiLeft, this.guiTop)) {
+            return; // 不把锁定槽加入原版拖拽目标集合
         }
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
     }
 
     @Override
     protected void mouseMovedOrUp(int mouseX, int mouseY, int state) {
-        if (SlotLockGuiSupport.shouldBlockRelease(this, mouseX, mouseY, this.guiLeft, this.guiTop)) {
+        if (SlotLockGuiSupport.isHeldItemBlockedAt(this, mouseX, mouseY, this.guiLeft, this.guiTop)) {
             this.field_147007_t = false;
             this.field_147008_s.clear();
             return; // 吞掉松开，held 留在手上，并清理拖拽残留状态
@@ -41,11 +41,15 @@ public class SlotLockGuiInventory extends GuiInventory {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
+        int mouseX = SlotLockGuiSupport.mouseX(this);
+        int mouseY = SlotLockGuiSupport.mouseY(this);
         if (SlotLockGuiSupport.isLockKeyCode(keyCode)) {
-            int mouseX = org.lwjgl.input.Mouse.getX() * this.width / this.mc.displayWidth;
-            int mouseY = this.height - org.lwjgl.input.Mouse.getY() * this.height / this.mc.displayHeight - 1;
-            SlotLockGuiSupport.handleKeyboardToggle(this, mouseX, mouseY, this.guiLeft, this.guiTop);
-            return; // 匹配到锁定键时吞掉，避免原版 keyTyped 的其它逻辑
+            // 只有真的切换了锁定才吞掉按键，否则会把其它键位一起吃掉
+            if (SlotLockGuiSupport.handleKeyboardToggle(this, mouseX, mouseY, this.guiLeft, this.guiTop)) {
+                return;
+            }
+        } else if (SlotLockGuiSupport.isHotbarSwapBlocked(this, keyCode, mouseX, mouseY, this.guiLeft, this.guiTop)) {
+            return; // 数字键交换会把快捷栏物品放进锁定栏位
         }
         super.keyTyped(typedChar, keyCode);
     }

@@ -12,16 +12,39 @@ import net.minecraft.nbt.NBTTagCompound;
  */
 public final class SlotLockState {
 
+    /**
+     * 锁定类型。每个常量带一个稳定的存档编码（{@link #getId()}），
+     * 落盘不依赖 {@code ordinal()}，因此重排常量顺序不会破坏既有存档。
+     */
     public enum LockType {
 
         /** 未锁定：允许一切。 */
-        NONE,
+        NONE(0),
 
         /** 空锁定：该栏位为空时锁定，之后任何物品都不能放入。 */
-        EMPTY,
+        EMPTY(1),
 
         /** 类型锁定：只能放入同一种物品（可堆叠），物品被取走后仍锁定该类型。 */
-        TYPE
+        TYPE(2);
+
+        private final int id;
+
+        LockType(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public static LockType fromId(int id) {
+            for (LockType type : values()) {
+                if (type.id == id) {
+                    return type;
+                }
+            }
+            return NONE;
+        }
     }
 
     public static final SlotLockState NONE = new SlotLockState(LockType.NONE, null);
@@ -48,9 +71,15 @@ public final class SlotLockState {
         return type;
     }
 
-    /** 返回模板物品的副本（供渲染使用），仅 TYPE 锁定返回非空。 */
-    public ItemStack getTemplate() {
-        return template == null ? null : template.copy();
+    /**
+     * 直接访问模板物品，供渲染使用（只读，不要修改返回的栈）。
+     *
+     * <p>
+     * 不要在这里 copy()：{@code ItemStack.copy()} 会连带深拷贝 NBT
+     * （ItemStack.java:390-400），而残影每帧都要取一次模板，逐帧深拷贝纯属浪费。
+     */
+    public ItemStack peekTemplate() {
+        return template;
     }
 
     public boolean isLocked() {
@@ -80,7 +109,7 @@ public final class SlotLockState {
 
     public NBTTagCompound toNBT() {
         NBTTagCompound tag = new NBTTagCompound();
-        tag.setByte("type", (byte) type.ordinal());
+        tag.setByte("type", (byte) type.getId());
         if (type == LockType.TYPE && template != null) {
             NBTTagCompound itemTag = new NBTTagCompound();
             template.writeToNBT(itemTag);
@@ -94,11 +123,11 @@ public final class SlotLockState {
         if (tag == null) {
             return NONE;
         }
-        int type = tag.getByte("type");
-        if (type == LockType.EMPTY.ordinal()) {
+        LockType type = LockType.fromId(tag.getByte("type"));
+        if (type == LockType.EMPTY) {
             return EMPTY;
         }
-        if (type == LockType.TYPE.ordinal()) {
+        if (type == LockType.TYPE) {
             ItemStack template = ItemStack.loadItemStackFromNBT(tag.getCompoundTag("template"));
             return template == null ? NONE : ofType(template);
         }

@@ -14,18 +14,53 @@ import org.lwjgl.input.Keyboard;
 import com.KKKXia.NHToolbox.NHToolbox;
 import com.KKKXia.NHToolbox.config.ModConfig;
 
+import cpw.mods.fml.client.registry.ClientRegistry;
+
 public class KeyBindings {
+
+    /** 背包栏位锁定默认键：鼠标中键（-100 左键 / -99 右键 / -98 中键，与原版 keyBindPickBlock 同值）。 */
+    public static final int DEFAULT_LOCK_KEY_CODE = -98;
 
     public static final KeyBinding TOGGLE_FLOATING_PLACE = new KeyBinding(
         "key.floating_place.toggle",
         Keyboard.KEY_G,
         "key.categories.nhtoolbox");
 
-    /** 背包栏位锁定：默认鼠标中键（-100 左键 / -99 右键 / -98 中键，与原版 keyBindPickBlock 同值）。 */
-    public static final KeyBinding LOCK_SLOT = new KeyBinding(
-        "key.nhtoolbox.lock_slot",
-        -98,
-        "key.categories.nhtoolbox");
+    /**
+     * 背包栏位锁定按键：懒创建，只有功能开启时才会被构造。
+     *
+     * <p>
+     * 为什么必须懒创建：{@link KeyBinding} 的构造函数会把自己写进原版全局键表
+     * （KeyBinding.java:88-89 {@code keybindArray.add(this); hash.addKey(keyCode, this);}），
+     * 而 {@code IntHashMap.addKey} 对同一键码是"后写入者覆盖"（IntHashMap.java:94-96）。
+     * 默认键 -98 与原版 {@code keyBindPickBlock}（GameSettings.java:214）冲突，
+     * 所以只要构造了它，世界的"选取方块"就再也收不到按下状态
+     * （Minecraft.java:1781/1785 写状态，2025/2047 消费）——开关关闭时构造会白白破坏原版功能。
+     */
+    private static KeyBinding lockSlot;
+
+    /** 获取（必要时创建）锁定按键。功能关闭时不会被调用，因此不会污染原版键表。 */
+    public static KeyBinding getLockSlot() {
+        if (lockSlot == null) {
+            lockSlot = new KeyBinding("key.nhtoolbox.lock_slot", DEFAULT_LOCK_KEY_CODE, "key.categories.nhtoolbox");
+        }
+        return lockSlot;
+    }
+
+    /** 当前锁定键码；未创建时返回默认值。 */
+    public static int getLockSlotKeyCode() {
+        return lockSlot == null ? DEFAULT_LOCK_KEY_CODE : lockSlot.getKeyCode();
+    }
+
+    /**
+     * 注册锁定按键（仅功能开启时调用）：注册进 Forge 按键表，并修复与
+     * {@code keyBindPickBlock} 的 -98 冲突（必须在恢复自定义键位之后调用）。
+     */
+    public static void registerLockSlot() {
+        ClientRegistry.registerKeyBinding(getLockSlot());
+        fixPickBlockCollision();
+        NHToolbox.LOG.info("已注册背包栏位锁定按键，当前键码 {}", getLockSlotKeyCode());
+    }
 
     /**
      * 恢复本模组按键在 options.txt 中保存的自定义键位。
@@ -40,7 +75,7 @@ public class KeyBindings {
     public static void loadSavedBindings() {
         applySavedKeyCode(TOGGLE_FLOATING_PLACE);
         if (ModConfig.isSlotLockEnabled()) {
-            applySavedKeyCode(LOCK_SLOT);
+            applySavedKeyCode(getLockSlot());
         }
     }
 
@@ -100,8 +135,8 @@ public class KeyBindings {
         }
         try {
             List<KeyBinding> bindings = (List<KeyBinding>) keybindArray.get(null);
-            bindings.remove(LOCK_SLOT);
-            bindings.add(0, LOCK_SLOT);
+            bindings.remove(getLockSlot());
+            bindings.add(0, getLockSlot());
             KeyBinding.resetKeyBindingArrayAndHash();
         } catch (Exception e) {
             NHToolbox.LOG.warn("修复 keyBindPickBlock 键位冲突失败，原版选取方块可能失效", e);

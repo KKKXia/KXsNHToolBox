@@ -1,6 +1,5 @@
 package com.KKKXia.NHToolbox.Proxy;
 
-import static com.KKKXia.NHToolbox.handler.KeyBindings.LOCK_SLOT;
 import static com.KKKXia.NHToolbox.handler.KeyBindings.TOGGLE_FLOATING_PLACE;
 
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -61,13 +60,15 @@ public class ClientProxy extends CommonProxy {
         super.postInit(event);
         ClientRegistry.registerKeyBinding(TOGGLE_FLOATING_PLACE);
         // 1.7.10 的 loadOptions 在 mod 按键注册前运行，options.txt 中保存的 mod 按键值
-        // 不会被自动加载；这里恢复，避免每次启动都回落默认键（改键"不生效"的根因之一）
+        // 不会被自动加载；这里恢复，避免每次启动都回落默认键（改键"不生效"的根因之一）。
+        // 开关开启时会顺带创建并恢复"锁定背包栏位"的按键。
         KeyBindings.loadSavedBindings();
-        // 背包栏位锁定：由配置开关控制（默认关闭）。关闭时不注册按键、不改写原版选块键归属。
+        // 背包栏位锁定：由配置开关控制（默认关闭）。关闭时连 KeyBinding 都不创建——
+        // KeyBinding 构造器会把自己写进原版全局键表，默认键 -98 会抢走 keyBindPickBlock
+        // 的中键条目，导致世界里"选取方块"失效（详见 KeyBindings 注释）。
+        // registerLockSlot() 内部会重建键表，因此必须在恢复自定义键位之后调用。
         if (ModConfig.isSlotLockEnabled()) {
-            ClientRegistry.registerKeyBinding(LOCK_SLOT);
-            // 默认键位 -98 与原版 keyBindPickBlock 相同，注册后需要恢复原版按键事件的归属
-            KeyBindings.fixPickBlockCollision();
+            KeyBindings.registerLockSlot();
         }
     }
 
