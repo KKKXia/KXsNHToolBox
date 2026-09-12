@@ -32,7 +32,8 @@ public final class SlotLockGuiSupport {
     /** 边框颜色：空锁定 = 蓝色，类型锁定 = 绿色。 */
     private static final int COLOR_EMPTY_LOCK = 0xFF40B0FF;
     private static final int COLOR_TYPE_LOCK = 0xFF40FF80;
-    private static final float GHOST_ALPHA = 0.5F;
+    /** 取空后残留图标的透明度（越小越淡；0.4 与真实物品区分明显，可按口味调整）。 */
+    private static final float GHOST_ALPHA = 0.4F;
 
     private SlotLockGuiSupport() {}
 
@@ -192,21 +193,30 @@ public final class SlotLockGuiSupport {
             int y = slot.yDisplayPosition;
             int color = state.getType() == SlotLockState.LockType.EMPTY ? COLOR_EMPTY_LOCK : COLOR_TYPE_LOCK;
 
-            // 彩色小方框：2px 宽的四条边
-            Gui.drawRect(x - 1, y - 1, x + 17, y + 1, color);
-            Gui.drawRect(x - 1, y + 15, x + 17, y + 17, color);
-            Gui.drawRect(x - 1, y - 1, x + 1, y + 17, color);
-            Gui.drawRect(x + 15, y - 1, x + 17, y + 17, color);
+            // 彩色细边框：1px 宽的四条边（避免遮挡相邻栏位与物品边缘）
+            Gui.drawRect(x - 1, y - 1, x + 17, y, color);
+            Gui.drawRect(x - 1, y + 16, x + 17, y + 17, color);
+            Gui.drawRect(x - 1, y - 1, x, y + 17, color);
+            Gui.drawRect(x + 16, y - 1, x + 17, y + 17, color);
 
-            // 类型锁定且槽位为空：半透明渲染模板图标
+            // 类型锁定且槽位为空：半透明渲染模板图标（"取空后的残影"）
             if (state.getType() == SlotLockState.LockType.TYPE && slot.getStack() == null) {
                 ItemStack template = state.getTemplate();
                 if (template != null) {
                     GL11.glEnable(GL11.GL_BLEND);
                     GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                    // 物品绘制会开启 alpha test，若阈值高于残影 alpha 会整片被丢弃；
+                    // 显式降到原版默认阈值 0.1，保证 0.4 的残影一定可见
+                    GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
                     GL11.glColor4f(1.0F, 1.0F, 1.0F, GHOST_ALPHA);
                     RenderHelper.enableGUIStandardItemLighting();
+                    // RenderItem 在 renderWithColor=true 时会强制 glColor4f(r, g, b, 1.0F)，
+                    // 把上面设置的透明度覆盖掉（残影会与真实物品毫无区别）。
+                    // 关闭它，让我们的 alpha 生效——这正是"淡化残影"的关键。
+                    boolean prevRenderWithColor = RENDER_ITEM.renderWithColor;
+                    RENDER_ITEM.renderWithColor = false;
                     RENDER_ITEM.renderItemAndEffectIntoGUI(MC.fontRenderer, MC.getTextureManager(), template, x, y);
+                    RENDER_ITEM.renderWithColor = prevRenderWithColor;
                     RenderHelper.disableStandardItemLighting();
                     GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
                     GL11.glDisable(GL11.GL_BLEND);
