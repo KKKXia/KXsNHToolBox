@@ -5,6 +5,7 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
 import net.minecraft.inventory.Slot;
@@ -32,8 +33,8 @@ public final class SlotLockGuiSupport {
     /** 边框颜色：空锁定 = 蓝色，类型锁定 = 绿色。 */
     private static final int COLOR_EMPTY_LOCK = 0xFF40B0FF;
     private static final int COLOR_TYPE_LOCK = 0xFF40FF80;
-    /** 取空后残留图标的透明度（越小越淡；0.4 与真实物品区分明显，可按口味调整）。 */
-    private static final float GHOST_ALPHA = 0.4F;
+    /** 残影遮罩：vanilla 槽位底色 #8B8B8B 叠加约 60% 不透明度，把图标"洗淡"成残影（数值越小越淡）。 */
+    private static final int GHOST_OVERLAY_COLOR = 0x998B8B8B;
 
     private SlotLockGuiSupport() {}
 
@@ -199,31 +200,35 @@ public final class SlotLockGuiSupport {
             Gui.drawRect(x - 1, y - 1, x, y + 17, color);
             Gui.drawRect(x + 16, y - 1, x + 17, y + 17, color);
 
-            // 类型锁定且槽位为空：半透明渲染模板图标（"取空后的残影"）
+            // 类型锁定且槽位为空：绘制"取空后的残影"
             if (state.getType() == SlotLockState.LockType.TYPE && slot.getStack() == null) {
                 ItemStack template = state.getTemplate();
                 if (template != null) {
-                    GL11.glEnable(GL11.GL_BLEND);
-                    GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                    // 物品绘制会开启 alpha test，若阈值高于残影 alpha 会整片被丢弃；
-                    // 显式降到原版默认阈值 0.1，保证 0.4 的残影一定可见
-                    GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
-                    GL11.glColor4f(1.0F, 1.0F, 1.0F, GHOST_ALPHA);
                     RenderHelper.enableGUIStandardItemLighting();
-                    // RenderItem 在 renderWithColor=true 时会强制 glColor4f(r, g, b, 1.0F)，
-                    // 把上面设置的透明度覆盖掉（残影会与真实物品毫无区别）。
-                    // 关闭它，让我们的 alpha 生效——这正是"淡化残影"的关键。
-                    boolean prevRenderWithColor = RENDER_ITEM.renderWithColor;
-                    RENDER_ITEM.renderWithColor = false;
                     RENDER_ITEM.renderItemAndEffectIntoGUI(MC.fontRenderer, MC.getTextureManager(), template, x, y);
-                    RENDER_ITEM.renderWithColor = prevRenderWithColor;
                     RenderHelper.disableStandardItemLighting();
+                    // RenderItem 的 2D 物品路径末尾会自行 glEnable(GL_LIGHTING)，
+                    // 且上面的 disableStandardItemLighting 关掉了 LIGHT0/LIGHT1/COLOR_MATERIAL，
+                    // 而本层入口（GuiContainer.drawScreen 第 99/133 行）的状态是：
+                    // LIGHTING=关、LIGHT0/LIGHT1/COLOR_MATERIAL=开。
+                    // 必须精确恢复，否则后续绘制（手持物品、tip、NEI 等）会处于
+                    // "有光照但无灯、无颜色材质"的状态 -> 物品掉色、发灰发淡。
+                    GL11.glDisable(GL11.GL_LIGHTING);
+                    GL11.glEnable(GL11.GL_LIGHT0);
+                    GL11.glEnable(GL11.GL_LIGHT1);
+                    GL11.glEnable(GL11.GL_COLOR_MATERIAL);
+
+                    // 用槽位底色叠加半透明遮罩实现"淡化残影"：
+                    // 不再修改 RenderItem.renderWithColor —— 那会让带 tint 的物品（羊毛/染料等）
+                    // 失去 getColorFromItemStack 着色，并且会影响 NEI 等同样使用 RenderItem 的模块。
+                    Gui.drawRect(x, y, x + 16, y + 16, GHOST_OVERLAY_COLOR);
                     GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-                    GL11.glDisable(GL11.GL_BLEND);
                 }
             }
         }
-        // 恢复到本层入口状态（前景层光照为禁用；深度测试保持调用方原状，不可擅自开启）
+        // 恢复到本层入口状态：光照关闭、混合函数还原为原版默认值
         GL11.glDisable(GL11.GL_LIGHTING);
+        OpenGlHelper.glBlendFunc(770, 771, 1, 0);
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
 }
