@@ -6,6 +6,7 @@ import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraftforge.client.event.GuiOpenEvent;
 
 import com.KKKXia.NHToolbox.NHToolbox;
+import com.KKKXia.NHToolbox.config.ModConfig;
 import com.KKKXia.NHToolbox.inventory.SlotLockGuiCreative;
 import com.KKKXia.NHToolbox.inventory.SlotLockGuiInventory;
 import com.KKKXia.NHToolbox.inventory.SlotLockManager;
@@ -32,11 +33,17 @@ public class SlotLockHandler {
     private boolean worldLoaded = false;
 
     public SlotLockHandler() {
-        NHToolbox.LOG.info("[SlotLock] GUI 替换安装器已注册（锁键键码 {}）", KeyBindings.LOCK_SLOT.getKeyCode());
+        NHToolbox.LOG.info(
+            "[SlotLock] GUI 替换安装器已注册（开关：{}，锁键键码 {}）",
+            ModConfig.isSlotLockEnabled(),
+            KeyBindings.LOCK_SLOT.getKeyCode());
     }
 
     @SubscribeEvent
     public void onGuiOpen(GuiOpenEvent event) {
+        if (!ModConfig.isSlotLockEnabled()) {
+            return; // 配置开关关闭（默认）：不改写任何原版界面
+        }
         if (event.gui instanceof SlotLockGuiInventory || event.gui instanceof SlotLockGuiCreative) {
             return; // 避免重复替换
         }
@@ -53,6 +60,9 @@ public class SlotLockHandler {
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
             return;
+        }
+        if (!ModConfig.isSlotLockEnabled()) {
+            return; // 关闭时不读取锁定数据（不触碰 slotLocks.dat）
         }
         if (MC.theWorld != null && MC.thePlayer != null) {
             if (!worldLoaded) {

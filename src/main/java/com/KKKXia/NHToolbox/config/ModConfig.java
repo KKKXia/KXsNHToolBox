@@ -14,6 +14,8 @@ public class ModConfig {
     public static boolean enableParticles = true;
     public static boolean enablePreviewBox = true;
     public static boolean consumeItemsInSurvival = true;
+    /** 背包栏位锁定总开关（默认关闭）。 */
+    public static boolean enableSlotLock = false;
 
     public static void init(File configFile) {
         config = new Configuration(configFile);
@@ -50,6 +52,16 @@ public class ModConfig {
                 true,
                 "Consume items from inventory when placing in survival mode");
 
+            enableSlotLock = config.getBoolean(
+                "enableSlotLock",
+                Configuration.CATEGORY_GENERAL,
+                false,
+                "Enable backpack slot locking (toggle a slot with the 'Lock Inventory Slot' hotkey, default middle mouse)\n"
+                    + "A locked slot only accepts the same item; an empty locked slot rejects everything.\n"
+                    + "Disabled by default. Requires game restart after changing.\n"
+                    + "背包栏位锁定总开关：用快捷键（默认鼠标中键）切换锁定；锁定后只能放入同种物品，空槽锁定拒收一切。\n"
+                    + "默认关闭，修改后需重启游戏生效。");
+
             if (config.hasChanged()) {
                 config.save();
             }
@@ -72,5 +84,10 @@ public class ModConfig {
 
     public static boolean isConsumeItemsInSurvival() {
         return consumeItemsInSurvival;
+    }
+
+    /** 背包栏位锁定是否启用（默认关闭）。 */
+    public static boolean isSlotLockEnabled() {
+        return enableSlotLock;
     }
 }

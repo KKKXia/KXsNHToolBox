@@ -12,6 +12,7 @@ import net.minecraft.client.settings.KeyBinding;
 import org.lwjgl.input.Keyboard;
 
 import com.KKKXia.NHToolbox.NHToolbox;
+import com.KKKXia.NHToolbox.config.ModConfig;
 
 public class KeyBindings {
 
@@ -38,7 +39,9 @@ public class KeyBindings {
      */
     public static void loadSavedBindings() {
         applySavedKeyCode(TOGGLE_FLOATING_PLACE);
-        applySavedKeyCode(LOCK_SLOT);
+        if (ModConfig.isSlotLockEnabled()) {
+            applySavedKeyCode(LOCK_SLOT);
+        }
     }
 
     private static void applySavedKeyCode(KeyBinding binding) {

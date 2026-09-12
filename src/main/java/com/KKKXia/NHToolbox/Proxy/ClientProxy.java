@@ -7,6 +7,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 
+import com.KKKXia.NHToolbox.config.ModConfig;
 import com.KKKXia.NHToolbox.handler.InputHandler;
 import com.KKKXia.NHToolbox.handler.KeyBindings;
 import com.KKKXia.NHToolbox.handler.PlayerTickHandler;
@@ -59,12 +60,15 @@ public class ClientProxy extends CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {
         super.postInit(event);
         ClientRegistry.registerKeyBinding(TOGGLE_FLOATING_PLACE);
-        ClientRegistry.registerKeyBinding(LOCK_SLOT);
         // 1.7.10 的 loadOptions 在 mod 按键注册前运行，options.txt 中保存的 mod 按键值
         // 不会被自动加载；这里恢复，避免每次启动都回落默认键（改键"不生效"的根因之一）
         KeyBindings.loadSavedBindings();
-        // 默认键位 -98 与原版 keyBindPickBlock 相同，注册后需要恢复原版按键事件的归属
-        KeyBindings.fixPickBlockCollision();
+        // 背包栏位锁定：由配置开关控制（默认关闭）。关闭时不注册按键、不改写原版选块键归属。
+        if (ModConfig.isSlotLockEnabled()) {
+            ClientRegistry.registerKeyBinding(LOCK_SLOT);
+            // 默认键位 -98 与原版 keyBindPickBlock 相同，注册后需要恢复原版按键事件的归属
+            KeyBindings.fixPickBlockCollision();
+        }
     }
 
     @Override

@@ -7,6 +7,7 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.entity.RenderItem;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -34,7 +35,7 @@ public final class SlotLockGuiSupport {
     private static final int COLOR_EMPTY_LOCK = 0xFF40B0FF;
     private static final int COLOR_TYPE_LOCK = 0xFF40FF80;
     /** 残影遮罩：vanilla 槽位底色 #8B8B8B 叠加约 60% 不透明度，把图标"洗淡"成残影（数值越小越淡）。 */
-    private static final int GHOST_OVERLAY_COLOR = 0x998B8B8B;
+    private static final int GHOST_OVERLAY_COLOR = 0x508B8B8B;
 
     private SlotLockGuiSupport() {}
 
@@ -205,7 +206,12 @@ public final class SlotLockGuiSupport {
                 ItemStack template = state.getTemplate();
                 if (template != null) {
                     RenderHelper.enableGUIStandardItemLighting();
+                    // 残影图标按原版槽位物品的深度绘制（zLevel=100：
+                    // renderItemAndEffectIntoGUI 内部会再 +50，与 GuiContainer.func_146977_a 一致）
+                    float prevZLevel = RENDER_ITEM.zLevel;
+                    RENDER_ITEM.zLevel = 50.0F;
                     RENDER_ITEM.renderItemAndEffectIntoGUI(MC.fontRenderer, MC.getTextureManager(), template, x, y);
+                    RENDER_ITEM.zLevel = prevZLevel;
                     RenderHelper.disableStandardItemLighting();
                     // RenderItem 的 2D 物品路径末尾会自行 glEnable(GL_LIGHTING)，
                     // 且上面的 disableStandardItemLighting 关掉了 LIGHT0/LIGHT1/COLOR_MATERIAL，
@@ -219,9 +225,12 @@ public final class SlotLockGuiSupport {
                     GL11.glEnable(GL11.GL_COLOR_MATERIAL);
 
                     // 用槽位底色叠加半透明遮罩实现"淡化残影"：
-                    // 不再修改 RenderItem.renderWithColor —— 那会让带 tint 的物品（羊毛/染料等）
-                    // 失去 getColorFromItemStack 着色，并且会影响 NEI 等同样使用 RenderItem 的模块。
-                    Gui.drawRect(x, y, x + 16, y + 16, GHOST_OVERLAY_COLOR);
+                    // 不再修改 RenderItem.renderWithColor（那会让带 tint 的物品掉色，
+                    // 并影响 NEI 等同样使用 RenderItem 的模块）。
+                    // 注意：前景层内深度测试是开启的（由槽位物品绘制打开），
+                    // 遮罩必须画在比图标更近的深度（200），否则会被深度测试剔除而看不见；
+                    // 同时低于 tooltip 的 300，仍不会遮挡提示框。
+                    drawGhostOverlay(x, y, x + 16, y + 16, GHOST_OVERLAY_COLOR, 200.0D);
                     GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
                 }
             }
@@ -230,5 +239,33 @@ public final class SlotLockGuiSupport {
         GL11.glDisable(GL11.GL_LIGHTING);
         OpenGlHelper.glBlendFunc(770, 771, 1, 0);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    /**
+     * 以指定深度绘制纯色半透明矩形。
+     *
+     * <p>
+     * {@link Gui#drawRect} 的 z 固定为 0，在前景层（深度测试开启）会被刚画好的
+     * 物品遮挡，因此这里自行用 Tessellator 指定 z（越大越靠前，参考原版：
+     * 槽位物品 100、tooltip 300）。
+     */
+    private static void drawGhostOverlay(int left, int top, int right, int bottom, int color, double z) {
+        float alpha = (float) (color >> 24 & 255) / 255.0F;
+        float red = (float) (color >> 16 & 255) / 255.0F;
+        float green = (float) (color >> 8 & 255) / 255.0F;
+        float blue = (float) (color & 255) / 255.0F;
+        Tessellator tessellator = Tessellator.instance;
+        GL11.glEnable(GL11.GL_BLEND);
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        OpenGlHelper.glBlendFunc(770, 771, 1, 0);
+        GL11.glColor4f(red, green, blue, alpha);
+        tessellator.startDrawingQuads();
+        tessellator.addVertex((double) left, (double) bottom, z);
+        tessellator.addVertex((double) right, (double) bottom, z);
+        tessellator.addVertex((double) right, (double) top, z);
+        tessellator.addVertex((double) left, (double) top, z);
+        tessellator.draw();
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_BLEND);
     }
 }
