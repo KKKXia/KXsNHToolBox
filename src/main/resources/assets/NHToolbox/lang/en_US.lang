@@ -1,2 +1,4 @@
 item.extendItemViewCell.name=Extended View Cell
 nhtoolbox.extendViewCell.lore=Extended View Cell: right-click a storage bus to copy its filters
+key.categories.nhtoolbox=NHToolbox
+key.nhtoolbox.lock_slot=Lock Inventory Slot
