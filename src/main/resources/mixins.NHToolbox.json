@@ -9,6 +9,7 @@
     "MixinAEBaseContainerLock",
     "MixinAdaptorIInventoryLock",
     "MixinAdaptorPlayerInventoryLock",
+    "MixinContainerAdvancedLock",
     "MixinContainerMergeLock"
   ],
   "client": ["MixinGuiContainerLockInput", "MixinGuiContainerLockOverlay"],

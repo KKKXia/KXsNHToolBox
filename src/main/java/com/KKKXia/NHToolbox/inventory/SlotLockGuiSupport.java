@@ -10,7 +10,6 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.entity.RenderItem;
-import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
@@ -107,42 +106,21 @@ public final class SlotLockGuiSupport {
     // 槽位解析
     // =====================================================================
     /**
-     * 把一个 GUI 槽位映射成玩家背包索引（0-35），不是玩家栏位则返回 -1。
+     * 槽位 -> 锁定键；不属于可锁定栏位（护甲、合成格、箱子格、幻影格……）时返回 -1。
      *
      * <p>
-     * 不能直接相信 {@link Slot#getSlotIndex()}：创造模式"物品栏"页签里，容器被换成了
-     * 45 个 {@code CreativeSlot} 包装槽（GuiContainerCreative.java:523），它没有覆写
-     * getSlotIndex()，返回的是**容器槽号**（Slot.java:201 返回构造参数），于是
-     * 护甲槽(5-8)会被误判成主背包、快捷栏(36-44)会被当成越界索引而排除。
-     * 这里用原版公开 API {@link Slot#isSlotInInventory}（CreativeSlot 会委托给真实槽，
-     * GuiContainerCreative.java:1193）反查真实索引，对第三方 mod 的包装槽同样成立。
+     * 直接复用 {@link SlotLockMergeRules#lockKey}：那里同时处理玩家背包栏位（0-35）与
+     * 背包模组的背包格（{@code SlotBackpack} -> 1000+），并且刻意不依赖
+     * {@code Minecraft.thePlayer}，这样客户端渲染与服务端/客户端容器计算出的键完全一致。
      */
-    public static int playerSlotIndex(Slot slot) {
-        Minecraft minecraft = mc();
-        if (minecraft == null || minecraft.thePlayer == null) {
-            return -1;
-        }
-        InventoryPlayer inventory = minecraft.thePlayer.inventory;
-        if (slot.inventory != inventory) {
-            return -1; // 护甲/合成/其他容器等非背包栏位（护甲在 ContainerPlayer 里属于同一个
-                       // InventoryPlayer，但索引为 36-39，下面的范围检查会把它排除）
-        }
-        int index = slot.getSlotIndex();
-        if (index >= 0 && index < SlotLockManager.SLOT_COUNT && slot.isSlotInInventory(inventory, index)) {
-            return index; // 常规路径（GuiInventory 的原版 Slot）
-        }
-        for (int i = 0; i < SlotLockManager.SLOT_COUNT; i++) {
-            if (slot.isSlotInInventory(inventory, i)) {
-                return i; // 包装槽：反查真实索引
-            }
-        }
-        return -1;
+    public static int lockKey(Slot slot) {
+        return SlotLockMergeRules.lockKey(slot);
     }
 
     /** 命中判定：GUI 缩放坐标（与原版 mouseClicked 同一坐标系）。 */
     public static Slot slotAt(GuiContainer gui, int mouseX, int mouseY, int guiLeft, int guiTop) {
         for (Slot slot : slotsOf(gui)) {
-            if (playerSlotIndex(slot) < 0) {
+            if (lockKey(slot) < 0) {
                 continue;
             }
             int x = guiLeft + slot.xDisplayPosition;
@@ -221,7 +199,7 @@ public final class SlotLockGuiSupport {
             return false;
         }
         Slot slot = slotAt(gui, mouseX, mouseY, guiLeft, guiTop);
-        int slotIndex = slot == null ? -1 : playerSlotIndex(slot);
+        int slotIndex = slot == null ? -1 : lockKey(slot);
         if (slotIndex < 0) {
             return false;
         }
@@ -265,7 +243,7 @@ public final class SlotLockGuiSupport {
     }
 
     public static void toggleAt(Slot slot) {
-        int index = playerSlotIndex(slot);
+        int index = lockKey(slot);
         if (index < 0) {
             return;
         }
@@ -320,7 +298,7 @@ public final class SlotLockGuiSupport {
         LOCKED_SLOTS.clear();
         SlotLockManager manager = SlotLockManager.getInstance();
         for (Slot slot : slotsOf(gui)) {
-            int index = playerSlotIndex(slot);
+            int index = lockKey(slot);
             if (index < 0 || !manager.getState(index)
                 .isLocked()) {
                 continue;
@@ -337,7 +315,7 @@ public final class SlotLockGuiSupport {
         GHOST_SLOTS.clear();
         SlotLockManager manager = SlotLockManager.getInstance();
         for (Slot slot : LOCKED_SLOTS) {
-            SlotLockState state = manager.getState(playerSlotIndex(slot));
+            SlotLockState state = manager.getState(lockKey(slot));
             if (state.getType() != SlotLockState.LockType.TYPE || slot.getStack() != null) {
                 continue; // 有物品时正常显示物品，只有被取空才显示残影
             }
@@ -357,7 +335,7 @@ public final class SlotLockGuiSupport {
         OpenGlHelper.glBlendFunc(770, 771, 1, 0);
         tessellator.startDrawingQuads();
         for (Slot slot : LOCKED_SLOTS) {
-            int index = playerSlotIndex(slot);
+            int index = lockKey(slot);
             if (index < 0) {
                 continue;
             }
@@ -386,7 +364,7 @@ public final class SlotLockGuiSupport {
         float prevZLevel = RENDER_ITEM.zLevel;
         RENDER_ITEM.zLevel = 50.0F;
         for (Slot slot : GHOST_SLOTS) {
-            ItemStack template = manager.getState(playerSlotIndex(slot))
+            ItemStack template = manager.getState(lockKey(slot))
                 .peekTemplate();
             if (template == null) {
                 continue;
@@ -456,7 +434,7 @@ public final class SlotLockGuiSupport {
     }
 
     private static boolean canAccept(Slot slot, ItemStack stack) {
-        return canAccept(playerSlotIndex(slot), stack);
+        return canAccept(lockKey(slot), stack);
     }
 
     private static ItemStack heldItem() {
