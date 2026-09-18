@@ -27,7 +27,8 @@ import com.KKKXia.NHToolbox.NHToolbox;
  * <p>
  * 状态持久化到 {@code config/NHToolbox/slotLocks.dat}（NBT 压缩格式）：
  * 每次切换后立即保存，进入世界后加载；文件缺失或损坏时重置为全部未锁定。
- * 玩家栏位沿用旧键名 {@code slotN}，背包栏位用 {@code backpackN}，旧存档可直接读取。
+ * 玩家栏位沿用旧键名 {@code slotN}，背包栏位用 {@code backpackN}，旧存档可直接读取；
+ * 旧档里已废弃的"空锁定"记录会在加载时被清理成未锁定。
  */
 public final class SlotLockManager {
 
@@ -87,22 +88,32 @@ public final class SlotLockManager {
     }
 
     /**
-     * 切换锁定状态：未锁定 -> 有物品则类型锁定（记住物品种类），无物品则空锁定；
-     * 已锁定 -> 解锁。切换后立即落盘。
+     * 切换锁定状态：未锁定 -> 类型锁定（记住栏位里那件物品的种类）；已锁定 -> 解锁。
+     * 切换后立即落盘。
+     *
+     * <p>
+     * 空栏位无法锁定：类型锁定必须有一件实物来确定"只收哪一种"（早先的"空锁定"状态已移除），
+     * 因此空栏位按下锁定键视为无事发生，由调用方决定如何提示。
+     *
+     * @return 状态是否真的发生了变化；false 表示键非法或栏位为空且未锁定
      */
-    public void toggle(int key, ItemStack currentStack) {
+    public boolean toggle(int key, ItemStack currentStack) {
         SlotLockState[] states = statesFor(key);
         if (states == null) {
-            return;
+            return false;
         }
         int index = indexIn(key);
-        if (!states[index].isLocked()) {
-            states[index] = currentStack == null ? SlotLockState.EMPTY : SlotLockState.ofType(currentStack);
-        } else {
+        if (states[index].isLocked()) {
             states[index] = SlotLockState.NONE;
+        } else {
+            if (currentStack == null) {
+                return false; // 空栏位：没有种类可记，什么也不锁
+            }
+            states[index] = SlotLockState.ofType(currentStack);
         }
         recount();
         save();
+        return true;
     }
 
     public void load() {
@@ -111,20 +122,37 @@ public final class SlotLockManager {
             clearAll();
             return;
         }
+        int deprecated = 0;
         // 流必须关闭：每次切换都会走一次 save()，句柄泄漏会在长时间游戏后累积
         try (FileInputStream in = new FileInputStream(file)) {
             NBTTagCompound root = CompressedStreamTools.readCompressed(in);
-            for (int i = 0; i < SLOT_COUNT; i++) {
-                playerStates[i] = SlotLockState.fromNBT(root.getCompoundTag("slot" + i));
-            }
-            for (int i = 0; i < BACKPACK_SLOT_COUNT; i++) {
-                backpackStates[i] = SlotLockState.fromNBT(root.getCompoundTag("backpack" + i));
-            }
+            deprecated = loadSpace(root, "slot", playerStates);
+            deprecated += loadSpace(root, "backpack", backpackStates);
             recount();
         } catch (Exception e) {
             clearAll();
             NHToolbox.LOG.warn("读取栏位锁定状态失败，已重置为全部未锁定", e);
+            return;
         }
+        // 旧档里的"空锁定"记录已无对应状态（见 SlotLockState.DEPRECATED_EMPTY_ID）：
+        // 读进来只会是未锁定，这里回写一次把死数据清掉（流的关闭放在前面，避免读写句柄叠在一起）
+        if (deprecated > 0) {
+            NHToolbox.LOG.info("[SlotLock] 忽略并清理了 {} 条旧版空锁定记录（该状态已移除），对应栏位视为未锁定", deprecated);
+            save();
+        }
+    }
+
+    /** 从 {@code root} 里按 {@code prefix+下标} 读一片锁定空间，返回其中已废弃的空锁定记录数。 */
+    private static int loadSpace(NBTTagCompound root, String prefix, SlotLockState[] target) {
+        int deprecated = 0;
+        for (int i = 0; i < target.length; i++) {
+            NBTTagCompound tag = root.getCompoundTag(prefix + i);
+            if (SlotLockState.isDeprecatedEntry(tag)) {
+                deprecated++;
+            }
+            target[i] = SlotLockState.fromNBT(tag);
+        }
+        return deprecated;
     }
 
     public void save() {

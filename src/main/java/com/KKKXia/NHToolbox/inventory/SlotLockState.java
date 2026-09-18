@@ -7,8 +7,14 @@ import net.minecraft.nbt.NBTTagCompound;
  * 单个背包栏位的锁定状态（不可变值对象）。
  *
  * <p>
- * 三种状态：{@link LockType#NONE} 未锁定、{@link LockType#EMPTY} 空锁定（拒收一切）、
- * {@link LockType#TYPE} 类型锁定（只接收同一种物品，槽位取空后显示淡化图标）。
+ * 两种状态：{@link LockType#NONE} 未锁定、{@link LockType#TYPE} 类型锁定
+ * （只接收同一种物品，槽位被取空后显示淡化图标）。
+ *
+ * <p>
+ * 早先还有第三种"空锁定"（栏位为空时锁定，之后拒收一切）。它没有物品作为
+ * "只收哪一种"的依据，实用价值有限，却要在每条插入链路上多写一条分支，
+ * 因此已整体移除；旧存档里残留的空锁定记录（编码 {@link #DEPRECATED_EMPTY_ID}）
+ * 读取时静默降级为未锁定。
  */
 public final class SlotLockState {
 
@@ -20,9 +26,6 @@ public final class SlotLockState {
 
         /** 未锁定：允许一切。 */
         NONE(0),
-
-        /** 空锁定：该栏位为空时锁定，之后任何物品都不能放入。 */
-        EMPTY(1),
 
         /** 类型锁定：只能放入同一种物品（可堆叠），物品被取走后仍锁定该类型。 */
         TYPE(2);
@@ -37,6 +40,7 @@ public final class SlotLockState {
             return id;
         }
 
+        /** 未知编码（含已废弃的空锁定）一律降级为 {@link #NONE}。 */
         public static LockType fromId(int id) {
             for (LockType type : values()) {
                 if (type.id == id) {
@@ -47,8 +51,13 @@ public final class SlotLockState {
         }
     }
 
+    /**
+     * 已废弃的"空锁定"存档编码。编号刻意不复用：旧存档里 id=1 的记录只会被读成未锁定，
+     * 不会被误读成别的状态（{@link LockType#TYPE} 因此保持 id=2 不变）。
+     */
+    public static final int DEPRECATED_EMPTY_ID = 1;
+
     public static final SlotLockState NONE = new SlotLockState(LockType.NONE, null);
-    public static final SlotLockState EMPTY = new SlotLockState(LockType.EMPTY, null);
 
     private final LockType type;
     /** 仅 {@link LockType#TYPE} 时非空，记录锁定的物品种类（stackSize 恒为 1）。 */
@@ -96,15 +105,10 @@ public final class SlotLockState {
      * stackSize，会导致同种物品因数量不同而被拒绝）。
      */
     public boolean accepts(ItemStack candidate) {
-        switch (type) {
-            case TYPE:
-                return template != null && candidate != null && template.isItemEqual(candidate);
-            case EMPTY:
-                return false;
-            case NONE:
-            default:
-                return true;
+        if (type == LockType.TYPE) {
+            return template != null && candidate != null && template.isItemEqual(candidate);
         }
+        return true; // 未锁定
     }
 
     public NBTTagCompound toNBT() {
@@ -118,19 +122,25 @@ public final class SlotLockState {
         return tag;
     }
 
-    /** 从 NBT 恢复；格式非法时静默降级为未锁定。 */
+    /** 从 NBT 恢复；格式非法或属于已废弃的空锁定（编码 {@link #DEPRECATED_EMPTY_ID}）时降级为未锁定。 */
     public static SlotLockState fromNBT(NBTTagCompound tag) {
         if (tag == null) {
             return NONE;
         }
-        LockType type = LockType.fromId(tag.getByte("type"));
-        if (type == LockType.EMPTY) {
-            return EMPTY;
-        }
-        if (type == LockType.TYPE) {
+        if (LockType.fromId(tag.getByte("type")) == LockType.TYPE) {
             ItemStack template = ItemStack.loadItemStackFromNBT(tag.getCompoundTag("template"));
             return template == null ? NONE : ofType(template);
         }
         return NONE;
+    }
+
+    /**
+     * 该 NBT 是否是已废弃的空锁定记录。
+     *
+     * <p>
+     * 仅供 {@link SlotLockManager#load()} 统计并清理旧档使用，因此不做成公开 API。
+     */
+    static boolean isDeprecatedEntry(NBTTagCompound tag) {
+        return tag != null && tag.hasKey("type") && tag.getByte("type") == DEPRECATED_EMPTY_ID;
     }
 }

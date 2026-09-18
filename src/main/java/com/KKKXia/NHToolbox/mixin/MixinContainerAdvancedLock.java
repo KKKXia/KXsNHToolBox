@@ -31,7 +31,7 @@ import de.eydamos.backpack.inventory.container.ContainerAdvanced;
  *
  * <p>
  * 顺带覆盖：自动拾取 {@code BackpackUtil.pickupItem -> ContainerPickup.pickupItem} 也调用
- * 同一个 {@code mergeItemStack}，因此拾取时会跳过空锁定格、并优先填匹配的类型锁定格。
+ * 同一个 {@code mergeItemStack}，因此拾取时会跳过拒绝该物品的锁定格、并优先填匹配的类型锁定格。
  *
  * <p>
  * 本类刻意不 {@code @Shadow} 任何字段：槽位表由 {@link SlotLockMergeRules} 这个普通类去读，

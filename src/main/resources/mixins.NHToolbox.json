@@ -10,8 +10,16 @@
     "MixinAdaptorIInventoryLock",
     "MixinAdaptorPlayerInventoryLock",
     "MixinContainerAdvancedLock",
-    "MixinContainerMergeLock"
+    "MixinContainerMergeLock",
+    "MixinContainerSlotClickLock",
+    "MixinInventoryPlayerLock"
   ],
-  "client": ["MixinGuiContainerLockInput", "MixinGuiContainerLockOverlay"],
+  "client": [
+    "MixinGuiContainerLockInput",
+    "MixinGuiContainerLockOverlay",
+    "MixinInvTweaksContainerManagerLock",
+    "MixinInvTweaksShortcutsLock",
+    "MixinInvTweaksSortingLock"
+  ],
   "server": []
 }

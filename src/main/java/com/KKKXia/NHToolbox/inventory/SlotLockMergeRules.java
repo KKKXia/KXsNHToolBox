@@ -309,6 +309,34 @@ public final class SlotLockMergeRules {
             stack);
     }
 
+    /**
+     * 该锁定键指向的栏位是否是此物品的"优先目标"（类型锁定且接受该物品）。
+     *
+     * <p>
+     * 供世界拾取（{@link SlotLockInventoryRules}）与 InventoryTweaks 快捷移动
+     * （{@code SlotLockInvTweaksRules}）复用，语义与快捷移动的优先趟完全一致。
+     */
+    public static boolean prefersItem(int key, ItemStack stack) {
+        return key >= 0 && isPreferredTarget(
+            SlotLockManager.getInstance()
+                .getState(key),
+            stack);
+    }
+
+    /**
+     * 原版同类堆叠判定：物品 ID + 损伤值 + NBT（不含数量上限）。
+     *
+     * <p>
+     * 与 {@code Container.mergeItemStack} 里的判定逐条对应，供新增的插入路径复用，
+     * 保证"能不能并进这一格"在各条链路上完全一致。
+     */
+    public static boolean isSameStack(ItemStack existing, ItemStack candidate) {
+        return existing != null && candidate != null
+            && existing.getItem() == candidate.getItem()
+            && (!candidate.getHasSubtypes() || candidate.getItemDamage() == existing.getItemDamage())
+            && ItemStack.areItemStackTagsEqual(candidate, existing);
+    }
+
     private static boolean isPreferredTarget(SlotLockState state, ItemStack stack) {
         return state.getType() == SlotLockState.LockType.TYPE && state.accepts(stack);
     }

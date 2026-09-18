@@ -21,13 +21,13 @@ import appeng.container.slot.AppEngSlot;
  * 为什么需要单独一个 mixin：AE2 的 {@code AEBaseContainer.transferStackInSlot:526} 完全自己实现
  * 了快捷移动（自己找堆叠、自己找空格、自己 putStack），**从不调用**
  * {@code Container.mergeItemStack}，所以 {@code MixinContainerMergeLock} 对它无效——
- * 症状就是"从 ME 终端取出的物品会被塞进 EMPTY 锁定的格子"。
+ * 症状就是"从 ME 终端取出的物品会被塞进类型不匹配的锁定格"。
  *
  * <p>
  * 注入点选在 {@code getValidDestinationSlots:470}（返回候选目标列表）之后：那是 AE2 决定
  * "这个物品能放到哪些栏位"的唯一入口，{@code transferStackInSlot} 拿到列表后只做遍历，
  * 列表里没有的栏位不会被使用。因此在这里剔除/重排即可同时实现：
- * 拒绝该物品的锁定格不出现（空锁定格不再被塞入），匹配的类型锁定格排到最前（优先填充）。
+ * 拒绝该物品的锁定格不出现，匹配的类型锁定格排到最前（优先填充）。
  *
  * <p>
  * 该方法返回的是新建的 {@code ArrayList}（AEBaseContainer:471），调用方只做遍历，

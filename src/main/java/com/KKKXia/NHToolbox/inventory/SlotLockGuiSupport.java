@@ -39,8 +39,7 @@ public final class SlotLockGuiSupport {
 
     private static final RenderItem RENDER_ITEM = new RenderItem();
 
-    /** 边框颜色：空锁定 = 蓝色，类型锁定 = 绿色。 */
-    private static final int COLOR_EMPTY_LOCK = 0xFF40B0FF;
+    /** 边框颜色：类型锁定 = 绿色（空锁定状态已移除，不再需要第二套配色）。 */
     private static final int COLOR_TYPE_LOCK = 0xFF40FF80;
     /** 残影遮罩：槽位底色 #8B8B8B、alpha 0x50（80/255 ≈ 31%，数值越小残影越淡）。 */
     private static final int GHOST_OVERLAY_COLOR = 0x508B8B8B;
@@ -144,7 +143,9 @@ public final class SlotLockGuiSupport {
             Slot slot = slotAt(gui, mouseX, mouseY, guiLeft, guiTop);
             if (slot != null) {
                 toggleAt(slot);
-                return true; // 吞掉锁定键，阻止原版的中键行为（clickType 3 / 拖拽）
+                // 只要悬停在可锁定栏位上就吞掉锁定键，阻止原版的中键行为（clickType 3 / 拖拽）；
+                // 空栏位虽然锁不上（见 toggleAt），这里也一并吞掉，语义与"这一下用掉了"一致
+                return true;
             }
             return false;
         }
@@ -248,7 +249,11 @@ public final class SlotLockGuiSupport {
             return;
         }
         SlotLockManager manager = SlotLockManager.getInstance();
-        manager.toggle(index, slot.getStack());
+        if (!manager.toggle(index, slot.getStack())) {
+            // 空栏位：类型锁定需要一件实物来确定"只收哪一种"，因此这里什么也不锁
+            NHToolbox.LOG.info("[SlotLock] 栏位槽 {} 为空，无法锁定（类型锁定需要物品来确定种类）", index);
+            return;
+        }
         NHToolbox.LOG.info(
             "[SlotLock] 切换栏位槽 {} -> 锁定状态 {}",
             index,
@@ -326,22 +331,15 @@ public final class SlotLockGuiSupport {
         }
     }
 
-    /** 1px 彩色细边框：四条边，全部合并进一次绘制。 */
+    /** 1px 彩色细边框：四条边，全部合并进一次绘制（颜色只设置一次）。 */
     private static void drawBorders() {
-        SlotLockManager manager = SlotLockManager.getInstance();
         Tessellator tessellator = Tessellator.instance;
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glDisable(GL11.GL_TEXTURE_2D);
         OpenGlHelper.glBlendFunc(770, 771, 1, 0);
         tessellator.startDrawingQuads();
+        tessellator.setColorRGBA_I(COLOR_TYPE_LOCK, 255);
         for (Slot slot : LOCKED_SLOTS) {
-            int index = lockKey(slot);
-            if (index < 0) {
-                continue;
-            }
-            int color = manager.getState(index)
-                .getType() == SlotLockState.LockType.EMPTY ? COLOR_EMPTY_LOCK : COLOR_TYPE_LOCK;
-            tessellator.setColorRGBA_I(color, 255);
             int x = slot.xDisplayPosition;
             int y = slot.yDisplayPosition;
             addQuad(tessellator, x - 1, y - 1, x + 17, y, BORDER_Z);

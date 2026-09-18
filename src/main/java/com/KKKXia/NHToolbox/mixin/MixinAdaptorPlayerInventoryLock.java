@@ -17,7 +17,7 @@ import appeng.util.inv.AdaptorPlayerInventory;
  * <p>
  * {@code AdaptorPlayerInventory.isItemValidForSlot} 直接委托给
  * {@code InventoryPlayer.isItemValidForSlot}（恒为 true），所以 AE2 的插入循环
- * （{@code AdaptorIInventory:217/241}）会毫不犹豫地使用 EMPTY 锁定格。
+ * （{@code AdaptorIInventory:217/241}）会毫不犹豫地把物品塞进"只收同种物品"的锁定格。
  * 主路径已由 {@code MixinAdaptorIInventoryLock} 接管，这里再压一道：
  * 返回 false 让任何走这个适配器的 AE2 代码都跳过拒绝该物品的锁定栏位。
  */

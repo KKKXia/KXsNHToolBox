@@ -25,7 +25,7 @@ import appeng.util.inv.AdaptorPlayerInventory;
  * {@code ContainerMEMonitorable.doAction(SHIFT_CLICK):669} ->
  * {@code InventoryAdaptor.addItems()}（先用 {@code simulateAdd} 算容量、再从网络抽取、
  * 最后真插），全程不碰容器，所以 {@code MixinContainerMergeLock} 与
- * {@code MixinAEBaseContainerLock} 都拦不到——症状正是"取出的物品被塞进 EMPTY 锁定格"。
+ * {@code MixinAEBaseContainerLock} 都拦不到——症状正是"取出的物品被塞进类型不匹配的锁定格"。
  *
  * <p>
  * 这里注入 {@code AdaptorIInventory} 的私有 {@code addItems(ItemStack, boolean, InsertionMode)}
