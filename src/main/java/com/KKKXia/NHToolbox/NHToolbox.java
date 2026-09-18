@@ -24,7 +24,7 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 public class NHToolbox {
 
     public static final String MODID = "NHToolbox";
-    public static final String VERSION = "0.1.0";
+    public static final String VERSION = "0.3.0-pre3";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
     @SidedProxy(
