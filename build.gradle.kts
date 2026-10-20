@@ -1,0 +1,8 @@
+plugins {
+    id("com.gtnewhorizons.gtnhconvention")
+}
+
+minecraft {
+    extraRunJvmArguments.add("-Xmx8G")
+    extraRunJvmArguments.add("-Xms8G")
+}
