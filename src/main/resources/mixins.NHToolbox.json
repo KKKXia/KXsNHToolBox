@@ -1,8 +1,23 @@
 {
   "required": true,
   "package": "com.kkkxia.nhtoolbox.mixin",
+  "refmap": "mixins.NHToolbox.refmap.json",
   "compatibilityLevel": "JAVA_8",
-  "mixins": [],
-  "client": [],
+  "mixins": [
+    "feature.slotlock.MixinContainerMergeLock",
+    "feature.slotlock.MixinContainerSlotClickLock",
+    "feature.slotlock.MixinInventoryPlayerLock",
+    "integration.ae2.MixinAEBaseContainerLock",
+    "integration.ae2.MixinAdaptorIInventoryLock",
+    "integration.ae2.MixinAdaptorPlayerInventoryLock",
+    "integration.backpack.MixinContainerAdvancedLock"
+  ],
+  "client": [
+    "feature.slotlock.MixinGuiContainerLockInput",
+    "feature.slotlock.MixinGuiContainerLockOverlay",
+    "integration.invtweaks.MixinInvTweaksContainerManagerLock",
+    "integration.invtweaks.MixinInvTweaksShortcutsLock",
+    "integration.invtweaks.MixinInvTweaksSortingLock"
+  ],
   "server": []
 }
