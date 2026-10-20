@@ -1,0 +1,90 @@
+package com.kkkxia.nhtoolbox.feature.floatingplace;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.entity.player.EntityPlayer;
+
+import org.lwjgl.opengl.GL11;
+
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
+
+/** 浮空放置的目标位置预览框。 */
+@SideOnly(Side.CLIENT)
+public class FloatingPlaceRenderer {
+
+    private static final FloatingPlaceManager placeManager = FloatingPlaceManager.getInstance();
+
+    public static void renderPreviewBox(float partialTicks) {
+        Minecraft mc = Minecraft.getMinecraft();
+        EntityPlayer player = mc.thePlayer;
+
+        if (player == null || mc.theWorld == null) {
+            return;
+        }
+
+        if (!placeManager.isFloatingPlaceMode() || !FloatingPlaceModule.previewBoxEnabled()) {
+            return;
+        }
+
+        int[] pos = RayTraceHelper.getPlacementPreviewPosition();
+        if (pos == null) {
+            return;
+        }
+
+        double px = player.lastTickPosX + (player.posX - player.lastTickPosX) * partialTicks;
+        double py = player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks;
+        double pz = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partialTicks;
+
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        GL11.glPushMatrix();
+
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glDisable(GL11.GL_LIGHTING);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glLineWidth(2.0F);
+
+        double x = pos[0] - px;
+        double y = pos[1] - py;
+        double z = pos[2] - pz;
+
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawing(3);
+        tessellator.setColorRGBA_F(0.0F, 1.0F, 0.5F, 0.6F);
+
+        tessellator.addVertex(x, y, z);
+        tessellator.addVertex(x + 1, y, z);
+        tessellator.addVertex(x + 1, y, z + 1);
+        tessellator.addVertex(x, y, z + 1);
+        tessellator.addVertex(x, y, z);
+
+        tessellator.addVertex(x, y + 1, z);
+        tessellator.addVertex(x + 1, y + 1, z);
+        tessellator.addVertex(x + 1, y + 1, z + 1);
+        tessellator.addVertex(x, y + 1, z + 1);
+        tessellator.addVertex(x, y + 1, z);
+
+        tessellator.addVertex(x, y + 1, z + 1);
+        tessellator.addVertex(x, y, z + 1);
+        tessellator.addVertex(x + 1, y, z + 1);
+        tessellator.addVertex(x + 1, y + 1, z + 1);
+
+        tessellator.addVertex(x + 1, y + 1, z);
+        tessellator.addVertex(x + 1, y, z);
+        tessellator.addVertex(x, y, z);
+        tessellator.addVertex(x, y + 1, z);
+
+        tessellator.draw();
+
+        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GL11.glEnable(GL11.GL_LIGHTING);
+        GL11.glDisable(GL11.GL_BLEND);
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+
+        GL11.glPopMatrix();
+        GL11.glPopAttrib();
+    }
+}
