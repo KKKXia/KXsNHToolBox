@@ -36,9 +36,8 @@ public class ExtendViewCellModule implements IFeatureModule {
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         ItemStack viewCell = ExtendedViewCell.vanillaViewCell();
-        ItemStack storageBus = ExtendedViewCell.storageBus();
-        if (viewCell != null && storageBus != null) {
-            GTModHandler.addShapelessCraftingRecipe(ExtendedViewCell.create(), new Object[] { viewCell, storageBus });
+        if (viewCell != null) {
+            GTModHandler.addShapelessCraftingRecipe(ExtendedViewCell.create(), new Object[] { viewCell });
         }
     }
 }

@@ -46,16 +46,6 @@ public final class ExtendedViewCell {
             .orNull();
     }
 
-    /** AE2 存储总线部件的物品栈。 */
-    public static ItemStack storageBus() {
-        return AEApi.instance()
-            .definitions()
-            .parts()
-            .storageBus()
-            .maybeStack(1)
-            .orNull();
-    }
-
     /** 创建带标记的扩展显示元件。 */
     public static ItemStack create() {
         ItemStack cell = vanillaViewCell();
