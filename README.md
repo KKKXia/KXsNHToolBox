@@ -73,5 +73,6 @@ flowchart TD
 | GTNH 版本  | 起始兼容版本 | 最新兼容版本 |                                                                   下载                                                                   | 维护状态 |
 |:----------:|:------------:|:------------:|:----------------------------------------------------------------------------------------------------------------------------------------:|:--------:|
 | 2.9-bate-1 |    0.2.0     |  0.3.0-pre1  | [![0.3.0-pre1](https://img.shields.io/badge/release-v0.3.0pre1-00FF00)](https://github.com/KKKXia/KXsNHToolBox/releases/tag/v0.3.0-pre1) |    ❌️    |
-| 2.9-bate-3 |  0.3.0-pre3  |  0.3.0-pre3  | [![0.3.0-pre3](https://img.shields.io/badge/release-v0.3.0pre3-00FF00)](https://github.com/KKKXia/KXsNHToolBox/releases/tag/v0.3.0-pre3) |    ✔️    |
+| 2.9-bate-3 |  0.3.0-pre3  |  0.3.0-pre3  | [![0.3.0-pre3](https://img.shields.io/badge/release-v0.3.0pre3-00FF00)](https://github.com/KKKXia/KXsNHToolBox/releases/tag/v0.3.0-pre3) |    ❌️    |
+|   2.9.0    |    0.3.1     |    0.3.1     |        [![0.3.1](https://img.shields.io/badge/release-v0.3.1-00FF00)](https://github.com/KKKXia/KXsNHToolBox/releases/tag/v0.3.1)        |    ✔️    |
 ---
