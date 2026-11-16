@@ -14,10 +14,8 @@ public final class NetworkManager {
     private final SimpleNetworkWrapper channel = NetworkRegistry.INSTANCE.newSimpleChannel(NHToolbox.MODID);
     private int nextPacketId;
 
-    public <REQ extends IMessage, REPLY extends IMessage> void registerPacket(
-        Class<REQ> packetClass,
-        Class<? extends IMessageHandler<REQ, REPLY>> handlerClass,
-        Side side) {
+    public <REQ extends IMessage, REPLY extends IMessage> void registerPacket(Class<REQ> packetClass,
+        Class<? extends IMessageHandler<REQ, REPLY>> handlerClass, Side side) {
         channel.registerMessage(handlerClass, packetClass, nextPacketId++, side);
     }
 

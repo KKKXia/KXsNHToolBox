@@ -95,9 +95,8 @@ public class RayTraceHelper {
             return pos;
         }
 
-        if (world.isAirBlock(pos[0], pos[1], pos[2])
-            || world.getBlock(pos[0], pos[1], pos[2])
-                .isReplaceable(world, pos[0], pos[1], pos[2])) {
+        if (world.isAirBlock(pos[0], pos[1], pos[2]) || world.getBlock(pos[0], pos[1], pos[2])
+            .isReplaceable(world, pos[0], pos[1], pos[2])) {
             return pos;
         }
 

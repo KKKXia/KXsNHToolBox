@@ -37,8 +37,8 @@ public class ExtendViewCellHandler {
     @SubscribeEvent
     public void onItemTooltip(ItemTooltipEvent event) {
         if (ExtendedViewCell.isExtended(event.itemStack)) {
-            event.toolTip.add(
-                EnumChatFormatting.DARK_GRAY + StatCollector.translateToLocal("nhtoolbox.extendViewCell.lore"));
+            event.toolTip
+                .add(EnumChatFormatting.DARK_GRAY + StatCollector.translateToLocal("nhtoolbox.extendViewCell.lore"));
         }
     }
 }

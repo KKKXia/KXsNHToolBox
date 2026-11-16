@@ -48,7 +48,9 @@ public final class KeyBindingManager {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     if (line.startsWith(prefix)) {
-                        int saved = Integer.parseInt(line.substring(prefix.length()).trim());
+                        int saved = Integer.parseInt(
+                            line.substring(prefix.length())
+                                .trim());
                         if (saved != binding.getKeyCode() && saved != binding.getKeyCodeDefault()) {
                             binding.setKeyCode(saved);
                             NHToolbox.LOG.info("从 options.txt 恢复按键 {} -> {}", binding.getKeyDescription(), saved);

@@ -26,8 +26,7 @@ public class SlotLockHandler {
 
     public SlotLockHandler() {
         if (SlotLockModule.isLockEnabled()) {
-            NHToolbox.LOG
-                .info("[SlotLock] 功能已启用（锁键键码 {}），所有容器界面均生效", SlotLockModule.getLockSlotKeyCode());
+            NHToolbox.LOG.info("[SlotLock] 功能已启用（锁键键码 {}），所有容器界面均生效", SlotLockModule.getLockSlotKeyCode());
         } else {
             // 关闭时必须什么都不做：连 KeyBinding 都不创建，原版中键（选取方块）保持原状
             NHToolbox.LOG.info("[SlotLock] 功能关闭：不注册锁定按键、不读取锁定数据，原版行为不变");
